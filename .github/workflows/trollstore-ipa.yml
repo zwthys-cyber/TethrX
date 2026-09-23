@@ -1,0 +1,82 @@
+name: TrollStore IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/trollstore-ipa.yml
+
+jobs:
+  ipa:
+    name: unsigned iOS 17 IPA
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app
+          xcodebuild -version
+
+      - name: Drop the watch embed
+        run: |
+          python3 << 'PY'
+          from pathlib import Path
+          path = Path("ios/GrokRemote.xcodeproj/project.pbxproj")
+          text = path.read_text()
+          text = text.replace("\t\t\t\tABCDEF0123456789ABCF0030 /* Embed Watch Content */,\n", "")
+          text = text.replace("\t\t\t\tABCDEF0123456789ABCF0041 /* PBXTargetDependency */,\n", "")
+          path.write_text(text)
+          PY
+
+      - name: Expand entitlements for TrollStore
+        run: |
+          find ios -name '*.entitlements' -print0 | xargs -0 sed -i '' 's/\$(AppIdentifierPrefix)//g'
+
+      - name: Build GrokRemote for iPhone
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project ios/GrokRemote.xcodeproj \
+            -scheme GrokRemote \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            CODE_SIGN_STYLE=Manual \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            COMPILER_INDEX_STORE_ENABLE=NO
+
+      - name: Package IPA
+        run: |
+          set -euo pipefail
+          brew install ldid
+          APP="$(find "$RUNNER_TEMP/DerivedData/Build/Products" -type d -name 'GrokRemote.app' | head -1)"
+          test -n "$APP"
+          echo "App: $APP"
+          ldid -Sios/GrokRemote/GrokRemote.entitlements "$APP/GrokRemote"
+          if [ -d "$APP/PlugIns/TethrXWidget.appex" ]; then
+            ldid -Sios/TethrXWidget/TethrXWidget.entitlements "$APP/PlugIns/TethrXWidget.appex/TethrXWidget"
+          fi
+          if [ -d "$APP/PlugIns/TethrXShare.appex" ]; then
+            ldid -Sios/TethrXShare/TethrXShare.entitlements "$APP/PlugIns/TethrXShare.appex/TethrXShare"
+          fi
+          rm -rf Payload
+          mkdir Payload
+          cp -R "$APP" Payload/
+          zip -r -y TethrX-trollstore.ipa Payload
+          ls -lh TethrX-trollstore.ipa
+          file Payload/GrokRemote.app/GrokRemote
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TethrX-trollstore
+          path: TethrX-trollstore.ipa
+          if-no-files-found: error
