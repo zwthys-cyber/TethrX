@@ -102,9 +102,13 @@ jobs:
 
   ios:
     name: ios (build)
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app
+          xcodebuild -version
       - name: diff engine
         run: |
           # The app has no test target; DiffModel.swift imports Foundation only so
@@ -113,11 +117,12 @@ jobs:
           "$RUNNER_TEMP/difftest"
       - name: build
         run: |
+          set -o pipefail
           # The GrokRemote scheme embeds the watchOS app, so this needs the watchOS
           # platform installed on the runner as well as iOS.
           xcodebuild -project ios/GrokRemote.xcodeproj -scheme GrokRemote \
             -destination 'generic/platform=iOS Simulator' \
-            CODE_SIGNING_ALLOWED=NO build | tail -5
+            CODE_SIGNING_ALLOWED=NO build
       - name: watch app is embedded
         run: |
           # A dropped embed phase is invisible until an archive fails to export, so
