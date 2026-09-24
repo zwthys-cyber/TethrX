@@ -32,7 +32,9 @@ struct SettingsView: View {
     @State private var removingPlugin: GrokPlugin?
     @ObservedObject private var watch = WatchLink.shared
     @EnvironmentObject private var language: AppLanguage
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedPage: SettingsPage?
+    @State private var backSwipeOffset: CGFloat = 0
 
     /// Settings used to be eleven blocks in one scroll, every one of them expanded,
     /// every one of them carrying a paragraph of explanation: about fifteen hundred
@@ -76,25 +78,39 @@ struct SettingsView: View {
     }
     var body: some View {
         NavigationStack {
-            ZStack {
-                Grok.bg.ignoresSafeArea()
-                if let page = selectedPage {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: Grok.groupGap) {
-                            body(of: page)
+            GeometryReader { geometry in
+                ZStack {
+                    Grok.bg.ignoresSafeArea()
+                    if selectedPage != nil, backSwipeOffset > 0, !reduceMotion {
+                        ScrollView {
+                            index
+                                .padding(.horizontal, Grok.gutter).padding(.vertical, 20)
                         }
-                        .padding(.horizontal, Grok.gutter).padding(.vertical, 20)
+                        .scrollIndicators(.hidden)
+                        .offset(x: -geometry.size.width * 0.18 + backSwipeOffset * 0.18)
                     }
-                    .scrollIndicators(.hidden)
-                    .id(page)
-                } else {
-                    ScrollView {
-                        index
+                    if let page = selectedPage {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: Grok.groupGap) {
+                                body(of: page)
+                            }
                             .padding(.horizontal, Grok.gutter).padding(.vertical, 20)
+                        }
+                        .scrollIndicators(.hidden)
+                        .id(page)
+                        .background(Grok.bg)
+                        .offset(x: reduceMotion ? 0 : backSwipeOffset)
+                    } else {
+                        ScrollView {
+                            index
+                                .padding(.horizontal, Grok.gutter).padding(.vertical, 20)
+                        }
+                        .scrollIndicators(.hidden)
+                        .id("settings-index")
                     }
-                    .scrollIndicators(.hidden)
-                    .id("settings-index")
                 }
+                .contentShape(Rectangle())
+                .simultaneousGesture(edgeBackGesture(width: geometry.size.width))
             }
             .task {
                 #if DEBUG
@@ -146,6 +162,48 @@ struct SettingsView: View {
         .background(Grok.bg.ignoresSafeArea())
         .presentationBackground(Grok.bg)
         .preferredColorScheme(.dark)
+    }
+
+    /// Restores the familiar iOS edge-pop gesture without returning to the
+    /// NavigationStack destination path that intermittently rendered a blank page.
+    /// It starts only at the system edge and locks to horizontal intent, so vertical
+    /// scrolling and controls inside a settings page keep their normal gestures.
+    private func edgeBackGesture(width: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 10, coordinateSpace: .local)
+            .onChanged { value in
+                guard selectedPage != nil, value.startLocation.x <= 24 else { return }
+                let dx = value.translation.width
+                guard dx > 0, dx > abs(value.translation.height) * 1.15 else { return }
+                if !reduceMotion { backSwipeOffset = min(width, dx) }
+            }
+            .onEnded { value in
+                guard selectedPage != nil, value.startLocation.x <= 24 else {
+                    backSwipeOffset = 0
+                    return
+                }
+                let dx = value.translation.width
+                let projected = value.predictedEndTranslation.width
+                let horizontal = dx > 0 && dx > abs(value.translation.height) * 1.15
+                let shouldReturn = horizontal && (dx > width * 0.28 || projected > width * 0.5)
+                if shouldReturn {
+                    if reduceMotion {
+                        selectedPage = nil
+                        backSwipeOffset = 0
+                    } else {
+                        withAnimation(.interactiveSpring(response: 0.32, dampingFraction: 0.9)) {
+                            backSwipeOffset = width
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+                            selectedPage = nil
+                            backSwipeOffset = 0
+                        }
+                    }
+                } else {
+                    withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.92)) {
+                        backSwipeOffset = 0
+                    }
+                }
+            }
     }
 
     /// What is in Settings, and what each thing currently says. A row that reads
