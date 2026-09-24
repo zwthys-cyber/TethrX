@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.4 (54) — 2026-09-25
+
+### Fixed
+
+- Opening a chat scrolls to the latest message. The previous build only moved a short way down, because the list had not laid out the rest of the conversation yet.
+
 ## 1.1.3 (53) — 2026-09-25
 
 ### Changed

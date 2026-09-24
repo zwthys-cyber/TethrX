@@ -11,12 +11,11 @@ struct ChatView: View {
     @State private var showGit = false
     @State private var showFiles = false
     @State private var atBottom = true
-    /// Opening a session should land on the newest line. History arrives after the
-    /// page is already on screen, so this stays on until that burst settles. A later
-    /// drag upward turns it off and leaves the reader where they scrolled.
+    /// Stay on the newest line until the reader drags up into older messages.
+    /// A short content height must not count as "they scrolled" — that is what
+    /// left the page only a little way down.
     @State private var followLatest = true
-    @State private var settling = true
-    @State private var settleTask: Task<Void, Never>?
+    @State private var laidOutHeight: CGFloat = 0
     @FocusState private var composerFocused: Bool
     /// Whether the composer's chip row is wider than the space it has. Only then is
     /// a fade at its trailing edge telling the truth.
@@ -321,8 +320,7 @@ struct ChatView: View {
         GeometryReader { outer in
             ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                    LazyVStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 14) {
                         // A compacted/branched session opens empty but ISN'T amnesiac —
                         // its first message silently carries this summary. Without the
                         // card, people copied the summary over by hand.
@@ -365,40 +363,45 @@ struct ChatView: View {
                             }
                         }
                         if showTyping { TypingIndicator().id("typing") }
+                        // The whole transcript is one stack, so this marker is as far
+                        // down as the last message. A lazy stack only laid out the
+                        // first screen, and scrolling to its end moved the page a
+                        // little and then stopped.
+                        Color.clear.frame(height: 1).id(bottomID)
+                            .background(GeometryReader { g in
+                                Color.clear.preference(key: BottomOffsetKey.self,
+                                                       value: g.frame(in: .named("transcript")).minY)
+                            })
                     }
-                    // Outside the lazy stack on purpose. A marker inside it is not
-                    // created until you scroll to it, so the first jump to the latest
-                    // line never finds it and the page stays at the top.
-                    Color.clear.frame(height: 1).id(bottomID)
-                        .background(GeometryReader { g in
-                            Color.clear.preference(key: BottomOffsetKey.self,
-                                                   value: g.frame(in: .named("transcript")).minY)
-                        })
-                    }
+                    .background(GeometryReader { g in
+                        Color.clear.preference(key: ContentHeightKey.self, value: g.size.height)
+                    })
                     .padding(.horizontal, Grok.gutter).padding(.vertical, 18)
                 }
                 .coordinateSpace(name: "transcript")
                 .defaultScrollAnchor(.bottom)
                 .scrollIndicators(.hidden)
                 .scrollDismissesKeyboard(.interactively)
+                .simultaneousGesture(DragGesture(minimumDistance: 12).onChanged { value in
+                    // Finger moving down reads older messages. Do not follow the tail
+                    // again until they come back to it.
+                    if value.translation.height > 28 { followLatest = false }
+                })
+                .onPreferenceChange(ContentHeightKey.self) { height in
+                    guard abs(height - laidOutHeight) > 0.5 else { return }
+                    laidOutHeight = height
+                    guard followLatest, !finding else { return }
+                    Task { @MainActor in revealLatest(proxy, animated: false) }
+                }
                 .onPreferenceChange(BottomOffsetKey.self) { minY in
-                    // The sentinel is not rendered at all, which means we are scrolled
-                    // well away from the bottom, not at it.
                     let bottom = minY != .greatestFiniteMagnitude && minY <= outer.size.height + 80
-                    // While history is still arriving the viewport is briefly at the
-                    // top. That is not the reader scrolling up.
-                    if settling {
-                        if !atBottom { atBottom = true }
-                        return
-                    }
                     if bottom != atBottom { atBottom = bottom }
-                    if !bottom { followLatest = false }
+                    // Arriving at the tail by any path resumes following. Being above
+                    // it does not stop following: the first layouts are short, and
+                    // treating that as a user scroll is what stranded the page.
+                    if bottom { followLatest = true }
                 }
-                .onAppear {
-                    settling = true
-                    revealLatest(proxy, animated: false)
-                    scheduleSettle(proxy)
-                }
+                .onAppear { revealLatest(proxy, animated: false) }
                 // While the find bar is open the reader is looking at a match, not at
                 // the tail — a streaming turn must not drag them back down.
                 .onChange(of: vm.items.count) { _, _ in noteTranscriptGrew(proxy) }
@@ -1155,24 +1158,7 @@ struct ChatView: View {
     /// History and streaming both append. Follow the tail until the reader scrolls up.
     private func noteTranscriptGrew(_ proxy: ScrollViewProxy) {
         guard followLatest, !finding else { return }
-        if settling {
-            revealLatest(proxy, animated: false)
-            scheduleSettle(proxy)
-        } else {
-            revealLatest(proxy, animated: true)
-        }
-    }
-
-    /// The open stays pinned until new lines stop arriving. Each batch restarts the
-    /// wait, so a long replay does not give up halfway and leave the top on screen.
-    private func scheduleSettle(_ proxy: ScrollViewProxy) {
-        settleTask?.cancel()
-        settleTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 350_000_000)
-            guard !Task.isCancelled else { return }
-            revealLatest(proxy, animated: false)
-            settling = false
-        }
+        revealLatest(proxy, animated: false)
     }
 
     private func revealLatest(_ proxy: ScrollViewProxy, animated: Bool) {
@@ -1187,6 +1173,11 @@ struct ChatView: View {
 
 /// Tracks the bottom marker's position in the scroll viewport, so the chat view
 /// can show a "jump to latest" button once the user scrolls up from the bottom.
+private struct ContentHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
 private struct BottomOffsetKey: PreferenceKey {
     /// "Not rendered", deliberately NOT zero.
     ///
