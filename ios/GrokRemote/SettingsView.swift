@@ -421,6 +421,45 @@ struct SettingsView: View {
             Text("How every new session starts. Nothing here is locked in. The same controls sit inside the message box in every session.")
                 .font(Grok.sans(13)).foregroundStyle(Grok.textDim).lineSpacing(2)
             VStack(alignment: .leading, spacing: 8) {
+                Text("Model").font(Grok.sans(14)).foregroundStyle(Grok.textDim)
+                Menu {
+                    Button {
+                        app.defaultModel = ""
+                    } label: {
+                        if app.defaultModel.isEmpty { Label("grok default", systemImage: "checkmark") }
+                        else { Text("grok default") }
+                    }
+                    ForEach(app.grokModels.models, id: \.self) { model in
+                        Button {
+                            app.defaultModel = model
+                        } label: {
+                            if app.defaultModel == model { Label(model, systemImage: "checkmark") }
+                            else { Text(model) }
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Text(app.defaultModel.isEmpty ? "grok default" : app.defaultModel)
+                            .font(Grok.mono(14)).foregroundStyle(Grok.text)
+                        Spacer()
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 11, weight: .semibold)).foregroundStyle(Grok.textFaint)
+                    }
+                    .padding(.horizontal, Grok.pad).frame(height: 44)
+                    .background(Grok.raised)
+                    .overlay(RoundedRectangle(cornerRadius: Grok.R.small, style: .continuous)
+                        .stroke(Grok.hairline, lineWidth: 1))
+                    .clipShape(RoundedRectangle(cornerRadius: Grok.R.small, style: .continuous))
+                }
+                if app.grokModels.models.isEmpty {
+                    Text("Connect to the bridge to load the models installed on your computer.")
+                        .font(Grok.sans(13)).foregroundStyle(Grok.textFaint)
+                } else if !app.grokModels.defaultModel.isEmpty {
+                    Text("Computer default: \(app.grokModels.defaultModel)")
+                        .font(Grok.sans(13)).foregroundStyle(Grok.textFaint)
+                }
+            }
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Reasoning effort").font(Grok.sans(14)).foregroundStyle(Grok.textDim)
                 Text("Higher thinks longer and costs more tokens. High is Grok's default.")
                     .font(Grok.sans(13)).foregroundStyle(Grok.textFaint)

@@ -22,7 +22,7 @@ final class AppState: ObservableObject {
     /// it, answering an approval from the session list and the whole watch app go
     /// quietly missing rather than failing — which is exactly the kind of silently
     /// inert feature the update banner exists to prevent.
-    nonisolated static let wantedBridgeVersion = "0.1.22"
+    nonisolated static let wantedBridgeVersion = "0.1.24"
     var bridgeNeedsUpdate: Bool {
         connected && Semver.isOlder(health?.version, than: Self.wantedBridgeVersion)
     }
@@ -37,6 +37,7 @@ final class AppState: ObservableObject {
     /// fall back instead of stranding the app on an address that can never connect.
     @Published var plainBase: String { didSet { store("bridge.plainBase", plainBase) } }
     @Published var defaultCwd: String { didSet { store("bridge.cwd", defaultCwd) } }
+    @Published var defaultModel: String { didSet { store("bridge.model", defaultModel) } }
     @Published var defaultEffort: String { didSet { store("bridge.effort", defaultEffort) } }   // "", high, medium, low
     @Published var defaultPlanMode: Bool { didSet { UserDefaults.standard.set(defaultPlanMode, forKey: "bridge.planMode") } }
     @Published var defaultAutoApprove: Bool { didSet { UserDefaults.standard.set(defaultAutoApprove, forKey: "bridge.autoApprove") } }
@@ -53,6 +54,7 @@ final class AppState: ObservableObject {
     @Published var demoMode = false
 
     @Published var health: HealthInfo?
+    @Published var grokModels = GrokModelsInfo()
     @Published var sessions: [SessionInfo] = []
     @Published var lastUsage: UsageReport?      // for the home-screen widget
     @Published var connected = false
@@ -81,6 +83,7 @@ final class AppState: ObservableObject {
         // A launch-arg token (debug) wins; otherwise load the secret from the Keychain.
         token = d.string(forKey: "bridge.token") ?? Keychain.load() ?? ""
         defaultCwd = d.string(forKey: "bridge.cwd") ?? ""
+        defaultModel = d.string(forKey: "bridge.model") ?? ""
         defaultEffort = d.string(forKey: "bridge.effort") ?? ""
         defaultPlanMode = d.bool(forKey: "bridge.planMode")
         defaultAutoApprove = d.bool(forKey: "bridge.autoApprove")
@@ -318,6 +321,7 @@ final class AppState: ObservableObject {
         // property that goes nil the moment credentials are cleared mid-flight.
         guard let live = client else { throw CancellationError() }
         sessions = try await live.listSessions()
+        grokModels = (try? await live.grokModels()) ?? GrokModelsInfo()
         connected = true
         rememberCurrentBridge()                                             // keep the paired-computer list current
         lastUsage = try? await live.usage()
@@ -488,6 +492,7 @@ final class AppState: ObservableObject {
         guard let client else { return nil }
         do {
             let s = try await client.createSession(cwd: defaultCwd.isEmpty ? nil : defaultCwd,
+                                                   model: defaultModel.isEmpty ? nil : defaultModel,
                                                    effort: defaultEffort.isEmpty ? nil : defaultEffort,
                                                    planMode: defaultPlanMode,
                                                    autoApprove: defaultAutoApprove)

@@ -24,6 +24,12 @@ struct HealthInfo: Codable {
     var tls: TlsInfo?
 }
 
+/// Models reported by the paired computer's own `grok models` command.
+struct GrokModelsInfo: Codable, Equatable {
+    var models: [String] = []
+    var defaultModel: String = ""
+}
+
 /// A paired computer. Its pairing token lives in the Keychain, keyed by `id`,
 /// so several machines (laptop + desktop) can stay paired at once.
 struct SavedBridge: Codable, Identifiable, Hashable {

@@ -14,6 +14,7 @@ import { join } from "node:path";
 import { SessionStore } from "../src/sessions.mjs";
 import { AcpSession } from "../src/acp.mjs";
 import * as git from "../src/git.mjs";
+import { parseGrokModels } from "../src/models.mjs";
 
 let failures = 0;
 function check(name, fn) {
@@ -32,6 +33,16 @@ function check(name, fn) {
 
 const dir = mkdtempSync(join(tmpdir(), "tethrx-test-"));
 const store = new SessionStore(join(dir, "sessions.json"));
+
+// --- model discovery -------------------------------------------------------
+
+check("grok model output is parsed without hard-coded ids", () => {
+  const info = parseGrokModels(`You are not authenticated.\n\nDefault model: grok-next\n\nAvailable models:\n  * grok-next (default)\n  - grok-fast\n  - grok-old\n`);
+  assert.deepEqual(info, {
+    models: ["grok-next", "grok-fast", "grok-old"],
+    defaultModel: "grok-next",
+  });
+});
 
 // --- approval policy --------------------------------------------------------
 

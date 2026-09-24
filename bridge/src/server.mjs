@@ -41,6 +41,7 @@ import { UsageHistory } from "./usage-history.mjs";
 import { ensureTls } from "./tls.mjs";
 import * as awake from "./awake.mjs";
 import * as git from "./git.mjs";
+import { listGrokModels } from "./models.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(__dirname, "..", "public");
@@ -1315,6 +1316,16 @@ async function handle(req, res) {
     const plugins = await listGrokPlugins();
     if (!plugins) return send(res, 502, { error: "couldn't list plugins. Is grok installed and signed in?" });
     return send(res, 200, { plugins });
+  }
+
+  // The roster comes from this machine's Grok install, not a list frozen into the
+  // phone. That keeps the picker current as xAI adds, renames, or removes models.
+  if (pathname === "/api/grok/models" && req.method === "GET") {
+    const info = await listGrokModels(config.grokBin);
+    if (!info.models.length) {
+      return send(res, 502, { error: "couldn't list models. Is grok installed?" });
+    }
+    return send(res, 200, info);
   }
   if (pathname === "/api/grok/plugins" && req.method === "POST") {
     const body = await readJsonOrEmpty(req);

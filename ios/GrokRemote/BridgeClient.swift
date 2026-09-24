@@ -102,15 +102,25 @@ struct BridgeClient {
         return try JSONDecoder().decode(UsageReport.self, from: data)
     }
 
-    func createSession(cwd: String?, effort: String? = nil, planMode: Bool = false, autoApprove: Bool = false) async throws -> SessionInfo {
+    func createSession(cwd: String?, model: String? = nil, effort: String? = nil, planMode: Bool = false, autoApprove: Bool = false) async throws -> SessionInfo {
         var body: [String: Any] = [:]
         if let cwd, !cwd.isEmpty { body["cwd"] = cwd }
+        if let model, !model.isEmpty { body["model"] = model }
         if let effort, !effort.isEmpty { body["effort"] = effort }
         if planMode { body["planMode"] = true }
         if autoApprove { body["autoApprove"] = true }
         let (data, resp) = try await session.data(for: try request("/api/sessions", method: "POST", json: body))
         try Self.check(resp)
         return try JSONDecoder().decode(SessionInfo.self, from: data)
+    }
+
+    /// Models available in the paired computer's installed Grok version.
+    func grokModels() async throws -> GrokModelsInfo {
+        var req = try request("/api/grok/models")
+        req.timeoutInterval = 30
+        let (data, resp) = try await session.data(for: req)
+        try Self.check(resp)
+        return try JSONDecoder().decode(GrokModelsInfo.self, from: data)
     }
 
     func deleteSession(_ id: String) async throws {
