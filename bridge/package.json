@@ -1,6 +1,6 @@
 {
   "name": "tethrx-bridge",
-  "version": "0.1.27",
+  "version": "0.1.28",
   "description": "Run Grok Build from your phone \u2014 the local bridge for the TethrX iOS app. Exposes a running Grok Build install to your phone over HTTP + SSE, with per-tool approvals.",
   "type": "module",
   "bin": {
@@ -29,8 +29,8 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Myrhex-x/TethrX.git",
+    "url": "git+https://github.com/zwthys-cyber/TethrX.git",
     "directory": "bridge"
   },
-  "homepage": "https://github.com/Myrhex-x/TethrX#readme"
+  "homepage": "https://github.com/zwthys-cyber/TethrX#readme"
 }

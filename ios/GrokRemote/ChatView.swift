@@ -1323,7 +1323,11 @@ struct ThoughtTrace: View {
     }
 
     @ViewBuilder private var header: some View {
-        if let seconds = item.thoughtDuration {
+        if item.thoughtTimingUnavailable {
+            Text("Thought")
+                .font(Grok.sans(15, .medium))
+                .foregroundStyle(Grok.textDim)
+        } else if let seconds = item.thoughtDuration {
             Text("Thought for \(Int(seconds.rounded()))s")
                 .font(Grok.sans(15, .medium))
                 .foregroundStyle(Grok.textDim)

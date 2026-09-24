@@ -282,6 +282,10 @@ class Session {
   emit(event) {
     if (this.dead) return 0;   // the session is gone; a turn still unwinding must not resurrect it
     this.updatedAt = new Date().toISOString();
+    // Conversation timing must survive a reconnect. The phone can time a live thought
+    // with its own clock, but replaying an unstamped history happens in milliseconds
+    // and used to turn every completed trace into the fiction "Thought for 0s".
+    event = { ...(event || {}), at: event?.at || this.updatedAt };
     // Every edit flows through here as a tool_update with a diff — the one reliable
     // signal of where grok actually worked, whatever the session's nominal cwd is.
     if (event?.kind === "tool_update" && event.diff?.path) this.noteEdit(event.diff.path);

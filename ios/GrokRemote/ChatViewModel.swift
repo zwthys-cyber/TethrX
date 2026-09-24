@@ -49,7 +49,7 @@ final class ChatViewModel: ObservableObject {
     private var watchdog: Task<Void, Never>?
     /// Streamed prose waiting to be folded in, in arrival order, with consecutive
     /// same-kind chunks already merged.
-    private var pendingChunks: [(thought: Bool, text: String)] = []
+    private var pendingChunks: [(thought: Bool, text: String, at: Date?)] = []
     private var flushTask: Task<Void, Never>?
     /// When the turn already in flight began, per the bridge. Replay ends on that
     /// turn's `turn_start` with no `turn_complete`, so this is what the stopwatch reads.
@@ -405,12 +405,12 @@ final class ChatViewModel: ObservableObject {
 
     /// Merge into the tail run when it is the same kind, so a burst of chunks becomes
     /// one string append instead of hundreds.
-    private func enqueueChunk(_ text: String, thought: Bool) {
+    private func enqueueChunk(_ text: String, thought: Bool, at: Date?) {
         guard !text.isEmpty else { return }
         if let last = pendingChunks.last, last.thought == thought {
             pendingChunks[pendingChunks.count - 1].text += text
         } else {
-            pendingChunks.append((thought, text))
+            pendingChunks.append((thought, text, at))
         }
         guard flushTask == nil else { return }
         flushTask = Task { @MainActor [weak self] in
@@ -435,12 +435,12 @@ final class ChatViewModel: ObservableObject {
                 } else {
                     append(.thought, run.text)
                     thoughtIndex = items.count - 1
-                    items[items.count - 1].startedAt = Date()
+                    items[items.count - 1].startedAt = run.at
                 }
             } else {
                 // Prose after reasoning ends the trace, which is what gives it a
                 // duration and lets the card collapse.
-                closeThought()
+                closeThought(at: run.at)
                 if let i = assistantIndex, items.indices.contains(i) {
                     items[i].text += run.text
                 } else {
@@ -460,6 +460,7 @@ final class ChatViewModel: ObservableObject {
         // flashed six Live Activities across the lock screen.
         let isReplay = (event["_eventId"] as? Int ?? Int.max) <= replayWatermark
         let kind = event["kind"] as? String
+        let eventAt = Fmt.date(fromISO: event["at"] as? String) ?? (isReplay ? nil : Date())
 
         // Streamed prose is buffered and flushed on a short timer. grok streams about
         // 4.3 characters per event, so a 4000 character answer arrives as roughly 930
@@ -468,7 +469,8 @@ final class ChatViewModel: ObservableObject {
         // chunk has to flush first, or it would be folded in ahead of prose that was
         // streamed before it.
         if kind == "text" || kind == "thought" {
-            enqueueChunk(event["text"] as? String ?? "", thought: kind == "thought")
+            enqueueChunk(event["text"] as? String ?? "", thought: kind == "thought",
+                         at: eventAt)
             return
         }
         flushStream()
@@ -476,7 +478,7 @@ final class ChatViewModel: ObservableObject {
         switch kind {
         case "turn_start":
             assistantIndex = nil
-            closeThought()
+            closeThought(at: eventAt)
             thoughtIndex = nil
             // A new turn gets a new checklist; the previous one stays in the transcript
             // exactly as it ended.
@@ -501,7 +503,7 @@ final class ChatViewModel: ObservableObject {
 
         case "tool_call":
             assistantIndex = nil
-            closeThought()
+            closeThought(at: eventAt)
             thoughtIndex = nil
             let tool = event["tool"] as? String ?? "tool"
             if !isReplay { liveActivity.update(phase: "working", detail: tool) }
@@ -531,7 +533,7 @@ final class ChatViewModel: ObservableObject {
 
         case "plan":
             assistantIndex = nil
-            closeThought()
+            closeThought(at: eventAt)
             thoughtIndex = nil   // else the next thought chunk appends ABOVE the plan card
             let entries = PlanEntry.decode(event["entries"] as? [[String: Any]] ?? [])
             guard !entries.isEmpty else { break }
@@ -551,7 +553,7 @@ final class ChatViewModel: ObservableObject {
 
         case "permission_request":
             assistantIndex = nil
-            closeThought()
+            closeThought(at: eventAt)
             thoughtIndex = nil
             if !isReplay {
                 liveActivity.update(phase: "waiting", detail: "Waiting for your approval")
@@ -579,7 +581,7 @@ final class ChatViewModel: ObservableObject {
 
         case "plan_review":
             assistantIndex = nil
-            closeThought()
+            closeThought(at: eventAt)
             thoughtIndex = nil
             if !isReplay {
                 liveActivity.update(phase: "waiting", detail: "Plan ready to review")
@@ -624,7 +626,7 @@ final class ChatViewModel: ObservableObject {
             busy = false
             turnStartedAt = nil
             assistantIndex = nil
-            closeThought()
+            closeThought(at: eventAt)
             thoughtIndex = nil
             // The visible "turn ended" separator lives here — the bridge emits
             // turn_complete, not the "end" kind an older revision listened for.
@@ -670,9 +672,14 @@ final class ChatViewModel: ObservableObject {
 
     /// Stamp the open reasoning block as finished. Idempotent: anything that follows
     /// thinking calls it, and only the first call sets the time.
-    private func closeThought() {
+    private func closeThought(at: Date? = nil) {
         guard let i = thoughtIndex, items.indices.contains(i), items[i].endedAt == nil else { return }
-        items[i].endedAt = Date()
+        if items[i].startedAt == nil {
+            items[i].thoughtTimingUnavailable = true
+            items[i].endedAt = .distantPast
+        } else {
+            items[i].endedAt = at ?? Date()
+        }
     }
 
     /// Compact JSON preview of a tool's arguments for display.

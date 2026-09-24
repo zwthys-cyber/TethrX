@@ -9,6 +9,9 @@ Your phone is only a control plane. Grok, its tools, and your code stay on your 
 
 **[Download on the App Store](https://apps.apple.com/app/tethrx/id6792520305)** — free, iPhone and iPad, iOS 17+. You still run the bridge yourself (below).
 
+For TrollStore/iOS 17, download the unsigned IPA from the
+**[latest GitHub release](https://github.com/zwthys-cyber/TethrX/releases/latest)**.
+
 ```
 ┌───────────┐  WatchConnectivity  ┌────────────┐   HTTP + SSE    ┌─────────────────────┐   JSON-RPC (ACP)   ┌───────────┐
 │ watchOS   │  ─────────────────▶ │  iOS app   │  ────────────▶  │   bridge daemon     │  ───────────────▶  │  grok     │
@@ -40,11 +43,11 @@ Everything below is **built and tested** against a real `grok` install.
 - **Share into a session** — send a link, some text, or a screenshot from any app straight to Grok via the share sheet.
 - **Branch a session** — fork the conversation so a second one starts knowing everything the first one knows, for trying another approach without losing this one.
 - **Voice dictation** and reusable prompt snippets.
-- **Sessions** — search across conversations, find inside one, folders, transcript export, and several paired computers you can switch between; nearby bridges appear automatically (Bonjour) when pairing. The list is ordered by what happened last, stays live on its own, and a running or blocked session says how long it has been that way.
+- **Sessions** — model-generated topic titles in the conversation language, model selection for new sessions, search across conversations, find inside one, folders, transcript export, and several paired computers you can switch between. The list is ordered by what happened last, stays live on its own, and a running or blocked session says how long it has been that way.
 - **Siri** — start a task or ask what Grok is doing without opening the app.
 - **Apple Watch** — the sessions on your wrist, the command Grok is blocked on with the same one-line reason the phone shows, and Approve / Deny / **Deny & explain**. Dictate a follow-up too. A **face complication** says whether Grok is working or waiting on you, so the usual answer needs no app at all. The watch asks your iPhone, so the pairing token never leaves it; an answer given out of range is queued and delivered when the phone is back.
 - **Home-screen and lock-screen widgets**, plus a **Live Activity** on the lock screen / Dynamic Island — pushed by the bridge, so it keeps moving with the app closed (iOS 17.2+). A widget that says *needs you* opens the session that is asking.
-- **Usage** — context window, tokens, and cost per session, plus **day-by-day** totals across everything, and a push when a session's context runs low.
+- **Usage** — context window, tokens, and cost per session, plus **day-by-day and per-model** totals across everything, and a push when a session's context runs low.
 - **Face ID lock**, since the bridge can run commands on your machine.
 - Your computer is kept **awake** for as long as a task is running, and the bridge can install itself as a **background service** so it's there after a reboot.
 - **iPad** — sidebar + conversation split layout.
@@ -93,7 +96,7 @@ logged out.
 
 Tap **Scan to pair** and point at a code on `localhost:4180/pair` — or enter the **bridge address** + **pairing token** by hand — then **＋** to start a session.
 
-**Building from source instead?** `open ios/GrokRemote.xcodeproj` (Xcode 26.3+ / 27), pick a simulator or set your Team + a device, and Run.
+**Building from source instead?** `open ios/GrokRemote.xcodeproj` (Xcode 26.6+), pick a simulator or set your Team + a device, and Run. CI builds on GitHub's `macos-26` image with Xcode 26.6.
 
 ---
 
@@ -211,7 +214,7 @@ State (pairing token, session registry, redirected grok-home) lives in `~/.grok-
 ## Layout
 
 ```
-grok-remote/
+TethrX/
 ├── bridge/
 │   ├── src/{server,acp,grok,sessions,config}.mjs   # daemon (ACP + headless)
 │   ├── src/{apns,awake,git}.mjs                    # push, sleep prevention, git review
@@ -228,6 +231,9 @@ grok-remote/
 
 ---
 
-## Licence
+## Project status and licence
+
+This repository is maintained independently at
+[`zwthys-cyber/TethrX`](https://github.com/zwthys-cyber/TethrX).
 
 [Apache License 2.0](LICENSE). TethrX is an independent client for Grok Build and is not affiliated with, endorsed by, or sponsored by xAI.

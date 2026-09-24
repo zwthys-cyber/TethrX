@@ -595,6 +595,9 @@ struct ChatItem: Identifiable, Equatable {
     // of leaving a wall of reasoning above every reply.
     var startedAt: Date? = nil
     var endedAt: Date? = nil
+    /// Finished legacy traces have no persisted timestamps. Showing no duration is
+    /// honest; calculating from replay speed produced the misleading "Thought for 0s".
+    var thoughtTimingUnavailable = false
     /// Nil while Grok is still thinking.
     var thoughtDuration: TimeInterval? {
         guard let startedAt, let endedAt else { return nil }

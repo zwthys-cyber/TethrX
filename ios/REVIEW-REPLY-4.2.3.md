@@ -56,7 +56,7 @@ Neither step requires Grok Build, a computer, a network connection, or any accou
 **If you would like to test the connected experience,** the companion program is
 open source and starts on any Mac with Node 20+ using a single command,
 `npx tethrx-bridge`. It prints a QR code that the app scans to pair. It is
-published at https://github.com/Myrhex-x/TethrX and on npm as `tethrx-bridge`. We
+published at https://github.com/zwthys-cyber/TethrX and on npm as `tethrx-bridge`. We
 are glad to provide a screen recording of the full flow if that is more convenient.
 
 Thank you again for your time.

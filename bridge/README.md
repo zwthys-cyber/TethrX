@@ -1,6 +1,6 @@
 # tethrx-bridge
 
-The local bridge for **[TethrX](https://github.com/Myrhex-x/TethrX)** — run **Grok Build** (xAI's terminal coding agent) from your phone.
+The local bridge for **[TethrX](https://github.com/zwthys-cyber/TethrX)** — run **Grok Build** (xAI's terminal coding agent) from your phone.
 
 The bridge runs on your computer and exposes your Grok Build install to the TethrX iOS app over HTTP + SSE: streamed thoughts, tool calls, and per-tool **approvals** you tap from your phone.
 
@@ -20,12 +20,15 @@ npx tethrx-bridge
 
 It prints a **bridge address** and a **pairing token**. On the same computer, open **http://localhost:4180/pair** to get a scannable QR code, then in the TethrX app tap **Scan to pair**. That page is loopback-only, so the token never leaves the machine.
 
-Prefer it always-on? Install it globally and run the binary (or wrap it in a launchd/systemd service):
+Prefer it always-on? Install it globally, then install the included launchd/systemd user service:
 
 ```bash
 npm i -g tethrx-bridge
-tethrx-bridge
+tethrx-bridge service install --host 0.0.0.0
 ```
+
+Manage it with `tethrx-bridge service status|logs|restart|uninstall`. On Linux,
+`loginctl enable-linger $USER` keeps the user service alive after you close SSH.
 
 ## Reaching it from your phone
 

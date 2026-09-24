@@ -35,6 +35,6 @@
 > You'll need Grok Build installed on your Mac/Linux box and the TethrX bridge running (`node bridge/src/server.mjs`). Enter the address + pairing token it prints, then start a session. Try plan mode and approving/rejecting a shell command.
 
 **URLs (repo is public — these resolve):**
-- Support URL: https://github.com/Myrhex-x/TethrX
-- Marketing URL (optional): https://github.com/Myrhex-x/TethrX
-- Privacy Policy URL: https://github.com/Myrhex-x/TethrX/blob/main/PRIVACY.md
+- Support URL: https://github.com/zwthys-cyber/TethrX
+- Marketing URL (optional): https://github.com/zwthys-cyber/TethrX
+- Privacy Policy URL: https://github.com/zwthys-cyber/TethrX/blob/main/PRIVACY.md

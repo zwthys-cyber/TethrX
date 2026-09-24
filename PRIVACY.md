@@ -42,4 +42,4 @@ Each of these is optional and used only for its stated purpose.
 
 ## Changes and contact
 
-If this policy changes, the update will appear in this file with a new date. Questions: open an issue at https://github.com/Myrhex-x/TethrX/issues.
+If this policy changes, the update will appear in this file with a new date. Questions: open an issue at https://github.com/zwthys-cyber/TethrX/issues.

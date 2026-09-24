@@ -28,7 +28,7 @@ Verified items were checked against the project on 2026-07-21.
 ## Must do before submitting (in App Store Connect)
 
 1. **Privacy policy URL** — required field. Use
-   `https://github.com/Myrhex-x/TethrX/blob/main/PRIVACY.md`
+   `https://github.com/zwthys-cyber/TethrX/blob/main/PRIVACY.md`
    (or a rendered page if you prefer).
 2. **App Privacy questionnaire** — answer **"Data is not collected"** for every
    category. This matches the privacy manifest; do not guess extra categories,
@@ -95,7 +95,7 @@ setup wizard. Standard practice for companion apps:
 
 > TethrX is a remote control for Grok Build (xAI's terminal coding agent)
 > running on the user's own computer. The app requires a companion program —
-> the open source bridge, https://github.com/Myrhex-x/TethrX — running on the
+> the open source bridge, https://github.com/zwthys-cyber/TethrX — running on the
 > reviewer's Mac, similar to how SSH clients require a server. The app operates
 > no third-party server: the phone talks directly to the user's computer over
 > the local network with certificate-pinned HTTPS, and the app collects no data.

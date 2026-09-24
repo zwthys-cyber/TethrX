@@ -75,6 +75,14 @@ check("Chinese first turns request a Chinese paraphrased title invisibly", () =>
   assert.equal(promptWithTitleGuidance("继续处理", false), "继续处理");
 });
 
+check("persisted conversation events carry timestamps for accurate replay timing", () => {
+  const s = store.create({ cwd: dir });
+  s.emit({ kind: "thought", text: "checking" });
+  const record = s.tail(1)[0];
+  assert.equal(record.event.kind, "thought");
+  assert.ok(!Number.isNaN(Date.parse(record.event.at)), "event timestamp should be ISO-8601");
+});
+
 // --- approval policy --------------------------------------------------------
 
 check("approval policy defaults to asking", () => {
