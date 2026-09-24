@@ -16,6 +16,9 @@ struct ChatView: View {
     /// left the page only a little way down.
     @State private var followLatest = true
     @State private var laidOutHeight: CGFloat = 0
+    /// Hidden until the latest line is already in view. A visible scroll from the
+    /// top is what made opening a chat feel slow.
+    @State private var revealed = false
     @FocusState private var composerFocused: Bool
     /// Whether the composer's chip row is wider than the space it has. Only then is
     /// a fade at its trailing edge telling the truth.
@@ -387,6 +390,8 @@ struct ChatView: View {
                     // again until they come back to it.
                     if value.translation.height > 28 { followLatest = false }
                 })
+                .opacity((vm.items.isEmpty ? vm.historyReady : revealed) ? 1 : 0)
+                .animation(nil, value: revealed)
                 .onPreferenceChange(ContentHeightKey.self) { height in
                     guard abs(height - laidOutHeight) > 0.5 else { return }
                     laidOutHeight = height
@@ -396,12 +401,25 @@ struct ChatView: View {
                 .onPreferenceChange(BottomOffsetKey.self) { minY in
                     let bottom = minY != .greatestFiniteMagnitude && minY <= outer.size.height + 80
                     if bottom != atBottom { atBottom = bottom }
-                    // Arriving at the tail by any path resumes following. Being above
-                    // it does not stop following: the first layouts are short, and
-                    // treating that as a user scroll is what stranded the page.
                     if bottom { followLatest = true }
+                    // Only uncover once history is in and the latest line is on screen.
+                    // Uncovering earlier shows a half-loaded page and then a scroll.
+                    if bottom, vm.historyReady { revealed = true }
                 }
                 .onAppear { revealLatest(proxy, animated: false) }
+                .onChange(of: vm.historyReady) { _, ready in
+                    guard ready else { return }
+                    // A few layout passes, all with animation off, then show. The
+                    // page the reader sees is already the latest line.
+                    Task { @MainActor in
+                        for _ in 0..<5 {
+                            revealLatest(proxy, animated: false)
+                            if revealed || vm.items.isEmpty { break }
+                            try? await Task.sleep(nanoseconds: 32_000_000)
+                        }
+                        revealed = true
+                    }
+                }
                 // While the find bar is open the reader is looking at a match, not at
                 // the tail — a streaming turn must not drag them back down.
                 .onChange(of: vm.items.count) { _, _ in noteTranscriptGrew(proxy) }
@@ -1163,10 +1181,14 @@ struct ChatView: View {
 
     private func revealLatest(_ proxy: ScrollViewProxy, animated: Bool) {
         guard followLatest, !finding else { return }
-        if animated {
+        // `scrollTo` animates unless the transaction says otherwise, and that
+        // animation is the slow glide from the top of the conversation.
+        if animated, revealed {
             withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(bottomID, anchor: .bottom) }
         } else {
-            proxy.scrollTo(bottomID, anchor: .bottom)
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { proxy.scrollTo(bottomID, anchor: .bottom) }
         }
     }
 }

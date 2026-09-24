@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.5 (55) — 2026-09-25
+
+### Fixed
+
+- Opening a chat shows the latest message immediately. 1.1.4 still animated the trip down from the top.
+
 ## 1.1.4 (54) — 2026-09-25
 
 ### Fixed

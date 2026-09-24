@@ -23,6 +23,9 @@ final class ChatViewModel: ObservableObject {
     @Published var plan: [PlanEntry] = []
     /// When the running turn began, for the stopwatch under the title. Nil when idle.
     @Published var turnStartedAt: Date?
+    /// History replay has been folded in. The chat stays hidden until then, so
+    /// opening a session does not play a scroll from the top down to the latest line.
+    @Published var historyReady = false
 
     // Live per-session settings (mirror the bridge; changed from the chat controls).
     @Published var planMode: Bool
@@ -80,6 +83,7 @@ final class ChatViewModel: ObservableObject {
         self.approvalPolicy = session.effectiveApprovalPolicy
         self.usage = session.usage
         self.queued = session.queue ?? []
+        self.historyReady = (session.lastEventId ?? 0) == 0
         // Hand each activity's update token to the bridge, so the lock-screen
         // status keeps moving after the app is closed.
         liveActivity.onPushToken = { [client, session] token in
@@ -98,6 +102,7 @@ final class ChatViewModel: ObservableObject {
         self.effort = demoSession.effort ?? ""
         self.approvalPolicy = demoSession.effectiveApprovalPolicy
         self.usage = demoSession.usage
+        self.historyReady = true
     }
 
     /// Change plan mode / reasoning effort / auto-approve for this session, live.
@@ -471,6 +476,7 @@ final class ChatViewModel: ObservableObject {
         if kind == "text" || kind == "thought" {
             enqueueChunk(event["text"] as? String ?? "", thought: kind == "thought",
                          at: eventAt)
+            noteHistoryCaughtUp()
             return
         }
         flushStream()
@@ -664,6 +670,16 @@ final class ChatViewModel: ObservableObject {
         default:
             break   // "log", "raw", heartbeats — ignored in the UI
         }
+        noteHistoryCaughtUp()
+    }
+
+    /// The event id is recorded before `apply`. Once it passes the replay watermark
+    /// the transcript holds the whole history, including a trailing text chunk that
+    /// would otherwise still be sitting in the 50ms buffer.
+    private func noteHistoryCaughtUp() {
+        guard !historyReady, lastEventId >= replayWatermark else { return }
+        flushStream()
+        historyReady = true
     }
 
     private func append(_ role: ChatRole, _ text: String) {
