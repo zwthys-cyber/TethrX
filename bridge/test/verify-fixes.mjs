@@ -16,6 +16,7 @@ import { AcpSession } from "../src/acp.mjs";
 import * as git from "../src/git.mjs";
 import { parseGrokModels } from "../src/models.mjs";
 import { UsageHistory } from "../src/usage-history.mjs";
+import { promptWithTitleGuidance } from "../src/titles.mjs";
 
 let failures = 0;
 function check(name, fn) {
@@ -64,6 +65,14 @@ check("Grok's generated session title is surfaced without copying a prompt", () 
     params: { update: { sessionUpdate: "session_info_update", title: "Authentication reliability improvements" } },
   });
   assert.deepEqual(events, [{ kind: "session_title", title: "Authentication reliability improvements" }]);
+});
+
+check("Chinese first turns request a Chinese paraphrased title invisibly", () => {
+  const guided = promptWithTitleGuidance("帮我识别这两张照片里的汽车", true);
+  assert.match(guided, /Simplified Chinese topic summary/);
+  assert.match(guided, /never copy the user's sentence/);
+  assert.equal(promptWithTitleGuidance("Identify this car", true), "Identify this car");
+  assert.equal(promptWithTitleGuidance("继续处理", false), "继续处理");
 });
 
 // --- approval policy --------------------------------------------------------

@@ -38,6 +38,7 @@ import { ensureAskGrokHome, AcpSession } from "./acp.mjs";
 import { loadApns } from "./apns.mjs";
 import { ScheduleStore, startScheduler } from "./schedules.mjs";
 import { UsageHistory } from "./usage-history.mjs";
+import { promptWithTitleGuidance } from "./titles.mjs";
 import { ensureTls } from "./tls.mjs";
 import * as awake from "./awake.mjs";
 import * as git from "./git.mjs";
@@ -983,6 +984,12 @@ function startAcpTurn(session, body) {
     session.seedContext = null;
     store.save();
   }
+  // Grok's automatic title generator defaults to English even when the user writes
+  // Chinese. Add invisible first-turn metadata (the transcript still uses
+  // `displayText`) so its own generated title follows the conversation language and
+  // summarizes instead of quoting the request.
+  body.displayText = body.displayText ?? body.text;
+  body.text = promptWithTitleGuidance(body.text, session.turnCount === 0);
   session.beginTurn();
   session.emit({
     kind: "turn_start",
