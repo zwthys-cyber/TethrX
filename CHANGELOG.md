@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.3 (53) — 2026-09-25
+
+### Changed
+
+- Conversation text is slightly smaller.
+- Opening a chat lands on the latest message instead of the start of the page.
+
 ## 1.1.2 (52) — 2026-09-25
 
 ### Added

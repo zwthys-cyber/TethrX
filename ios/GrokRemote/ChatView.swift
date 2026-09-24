@@ -11,6 +11,12 @@ struct ChatView: View {
     @State private var showGit = false
     @State private var showFiles = false
     @State private var atBottom = true
+    /// Opening a session should land on the newest line. History arrives after the
+    /// page is already on screen, so this stays on until that burst settles. A later
+    /// drag upward turns it off and leaves the reader where they scrolled.
+    @State private var followLatest = true
+    @State private var settling = true
+    @State private var settleTask: Task<Void, Never>?
     @FocusState private var composerFocused: Bool
     /// Whether the composer's chip row is wider than the space it has. Only then is
     /// a fade at its trailing edge telling the truth.
@@ -315,6 +321,7 @@ struct ChatView: View {
         GeometryReader { outer in
             ScrollViewReader { proxy in
                 ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
                     LazyVStack(alignment: .leading, spacing: 14) {
                         // A compacted/branched session opens empty but ISN'T amnesiac —
                         // its first message silently carries this summary. Without the
@@ -358,11 +365,15 @@ struct ChatView: View {
                             }
                         }
                         if showTyping { TypingIndicator().id("typing") }
-                        Color.clear.frame(height: 1).id(bottomID)
-                            .background(GeometryReader { g in
-                                Color.clear.preference(key: BottomOffsetKey.self,
-                                                       value: g.frame(in: .named("transcript")).minY)
-                            })
+                    }
+                    // Outside the lazy stack on purpose. A marker inside it is not
+                    // created until you scroll to it, so the first jump to the latest
+                    // line never finds it and the page stays at the top.
+                    Color.clear.frame(height: 1).id(bottomID)
+                        .background(GeometryReader { g in
+                            Color.clear.preference(key: BottomOffsetKey.self,
+                                                   value: g.frame(in: .named("transcript")).minY)
+                        })
                     }
                     .padding(.horizontal, Grok.gutter).padding(.vertical, 18)
                 }
@@ -374,15 +385,28 @@ struct ChatView: View {
                     // The sentinel is not rendered at all, which means we are scrolled
                     // well away from the bottom, not at it.
                     let bottom = minY != .greatestFiniteMagnitude && minY <= outer.size.height + 80
+                    // While history is still arriving the viewport is briefly at the
+                    // top. That is not the reader scrolling up.
+                    if settling {
+                        if !atBottom { atBottom = true }
+                        return
+                    }
                     if bottom != atBottom { atBottom = bottom }
+                    if !bottom { followLatest = false }
+                }
+                .onAppear {
+                    settling = true
+                    revealLatest(proxy, animated: false)
+                    scheduleSettle(proxy)
                 }
                 // While the find bar is open the reader is looking at a match, not at
                 // the tail — a streaming turn must not drag them back down.
-                .onChange(of: vm.items.count) { _, _ in if atBottom, !finding { scrollToBottom(proxy) } }
-                .onChange(of: lastText) { _, _ in if atBottom, !finding { scrollToBottom(proxy) } }
-                .onChange(of: vm.busy) { _, _ in if atBottom, !finding { scrollToBottom(proxy) } }
+                .onChange(of: vm.items.count) { _, _ in noteTranscriptGrew(proxy) }
+                .onChange(of: lastText) { _, _ in noteTranscriptGrew(proxy) }
+                .onChange(of: vm.busy) { _, _ in noteTranscriptGrew(proxy) }
                 .onChange(of: scrollTarget) { _, target in
                     guard let target else { return }
+                    followLatest = false
                     withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(target, anchor: .center) }
                 }
                 .overlay(alignment: .bottomTrailing) {
@@ -463,6 +487,7 @@ struct ChatView: View {
     private func waitingPill(_ item: ChatItem, _ proxy: ScrollViewProxy) -> some View {
         Button {
             Haptics.tap()
+            followLatest = false
             withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(item.id, anchor: .center) }
         } label: {
             HStack(spacing: 7) {
@@ -484,6 +509,8 @@ struct ChatView: View {
 
     private func jumpButton(_ proxy: ScrollViewProxy) -> some View {
         Button {
+            followLatest = true
+            atBottom = true
             withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(bottomID, anchor: .bottom) }
         } label: {
             // The one control in the app that genuinely hovers over moving text, so
@@ -1125,8 +1152,36 @@ struct ChatView: View {
     private var lastText: String { vm.items.last?.text ?? "" }
     private var isEmptyDraft: Bool { draft.trimmingCharacters(in: .whitespaces).isEmpty }
 
-    private func scrollToBottom(_ proxy: ScrollViewProxy) {
-        withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(bottomID, anchor: .bottom) }
+    /// History and streaming both append. Follow the tail until the reader scrolls up.
+    private func noteTranscriptGrew(_ proxy: ScrollViewProxy) {
+        guard followLatest, !finding else { return }
+        if settling {
+            revealLatest(proxy, animated: false)
+            scheduleSettle(proxy)
+        } else {
+            revealLatest(proxy, animated: true)
+        }
+    }
+
+    /// The open stays pinned until new lines stop arriving. Each batch restarts the
+    /// wait, so a long replay does not give up halfway and leave the top on screen.
+    private func scheduleSettle(_ proxy: ScrollViewProxy) {
+        settleTask?.cancel()
+        settleTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            guard !Task.isCancelled else { return }
+            revealLatest(proxy, animated: false)
+            settling = false
+        }
+    }
+
+    private func revealLatest(_ proxy: ScrollViewProxy, animated: Bool) {
+        guard followLatest, !finding else { return }
+        if animated {
+            withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(bottomID, anchor: .bottom) }
+        } else {
+            proxy.scrollTo(bottomID, anchor: .bottom)
+        }
     }
 }
 
@@ -1135,8 +1190,8 @@ struct ChatView: View {
 private struct BottomOffsetKey: PreferenceKey {
     /// "Not rendered", deliberately NOT zero.
     ///
-    /// The only contributor is a sentinel inside the LazyVStack, so scrolling up far
-    /// enough discards it and the aggregate falls back to this default. At zero that
+    /// The sentinel sits under the transcript. If it is not measured, the aggregate
+    /// falls back to this default. At zero that
     /// read as "the bottom marker is above the viewport", so `atBottom` flipped true and
     /// the next streamed token yanked the reader back down to the bottom mid-sentence.
     static var defaultValue: CGFloat = .greatestFiniteMagnitude
@@ -1618,7 +1673,7 @@ struct ChatBubble: View {
                     }
                     if !item.text.isEmpty {
                         Text(marked(item.text))
-                            .font(Grok.body())
+                            .font(Grok.sans(15))
                             .foregroundStyle(Grok.text)
                             .lineSpacing(2)
                             .padding(.horizontal, 16).padding(.vertical, 11)
@@ -1641,9 +1696,9 @@ struct ChatBubble: View {
                         CodeBlock(code: seg.text, language: seg.language)
                     } else {
                         Text(Self.marking(Self.markdown(seg.text), query: highlight))
-                            .font(Grok.body())
+                            .font(Grok.sans(15))
                             .foregroundStyle(Grok.text)
-                            .lineSpacing(5)
+                            .lineSpacing(3)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
