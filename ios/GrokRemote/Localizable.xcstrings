@@ -24365,6 +24365,16 @@
         }
       }
     },
+    "Thought" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "思考"
+          }
+        }
+      }
+    },
     "Thought for %llds" : {
       "localizations" : {
         "de" : {
