@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.2 (51) — 2026-09-24
+## 1.1.2 (52) — 2026-09-25
 
 ### Added
 
@@ -8,7 +8,7 @@
 
 ### Bridge
 
-- Updated `tethrx-bridge` to 0.1.29.
+- Updated `tethrx-bridge` to 0.1.29. The app asks for this bridge or newer, because an older one cannot serve those pictures.
 - `GET /api/sessions/:id/media` serves one generated image from that Grok session and nothing else on disk.
 
 ## 1.1.1 (50) — 2026-09-24
