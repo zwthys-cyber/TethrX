@@ -939,6 +939,15 @@ async function ensureAcp(session) {
         store.save();
         saveGlobalCommands(event.commands);
       }
+      if (event.kind === "session_title" && event.title) {
+        // Manual names always win.  Only replace the placeholder so a later Grok
+        // metadata refresh cannot undo a title the user deliberately chose.
+        const current = String(session.title || "").trim();
+        if (!current || current === "New session") {
+          session.title = event.title;
+          store.save();
+        }
+      }
       session.emit(event);
       if (event.kind === "tool_update" && event.diff?.path) {
         // emit() just noted the edited path; persist now — a bridge restart mid-turn

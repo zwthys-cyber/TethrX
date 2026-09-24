@@ -56,6 +56,16 @@ check("daily usage is split by the model that served each turn", () => {
   assert.equal(day.models["grok-b"].costUsdTicks, 2);
 });
 
+check("Grok's generated session title is surfaced without copying a prompt", () => {
+  const events = [];
+  const acp = new AcpSession({ cwd: dir, onEvent: (event) => events.push(event) });
+  acp._onNotification({
+    method: "session/update",
+    params: { update: { sessionUpdate: "session_info_update", title: "Authentication reliability improvements" } },
+  });
+  assert.deepEqual(events, [{ kind: "session_title", title: "Authentication reliability improvements" }]);
+});
+
 // --- approval policy --------------------------------------------------------
 
 check("approval policy defaults to asking", () => {
