@@ -76,21 +76,29 @@ struct SettingsView: View {
     }
     var body: some View {
         NavigationStack(path: $path) {
-            ScrollView {
-                index
-                    .padding(.horizontal, Grok.gutter).padding(.vertical, 20)
-            }
-            .background(Grok.bg)
-            .scrollIndicators(.hidden)
-            .navigationDestination(for: SettingsPage.self) { page in
+            ZStack {
+                Grok.bg.ignoresSafeArea()
                 ScrollView {
-                    VStack(alignment: .leading, spacing: Grok.groupGap) {
-                        body(of: page)
-                    }
-                    .padding(.horizontal, Grok.gutter).padding(.vertical, 20)
+                    index
+                        .padding(.horizontal, Grok.gutter).padding(.vertical, 20)
                 }
-                .background(Grok.bg)
                 .scrollIndicators(.hidden)
+            }
+            .navigationDestination(for: SettingsPage.self) { page in
+                ZStack {
+                    // Keep an opaque canvas mounted for the whole push transition.
+                    // A ScrollView background arrives a frame late on iOS 26,
+                    // exposing the sheet's grey presentation layer and occasionally
+                    // leaving it visible after an interrupted navigation animation.
+                    Grok.bg.ignoresSafeArea()
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: Grok.groupGap) {
+                            body(of: page)
+                        }
+                        .padding(.horizontal, Grok.gutter).padding(.vertical, 20)
+                    }
+                    .scrollIndicators(.hidden)
+                }
                 .navigationTitle(page.title)
                 .navigationBarTitleDisplayMode(.inline)
                 .grokBar()
@@ -131,6 +139,8 @@ struct SettingsView: View {
                 }
             }
         }
+        .background(Grok.bg.ignoresSafeArea())
+        .presentationBackground(Grok.bg)
         .preferredColorScheme(.dark)
     }
 
@@ -183,7 +193,10 @@ struct SettingsView: View {
     }
 
     private func indexRow(_ page: SettingsPage, _ icon: String, value: String? = nil) -> some View {
-        Button { Haptics.tap(); path.append(page) } label: {
+        // NavigationLink serializes pushes with NavigationStack. The old imperative
+        // button could append twice while the first push animation was in flight,
+        // which intermittently produced a flash or a blank grey destination.
+        NavigationLink(value: page) {
             HStack(spacing: 14) {
                 Image(systemName: icon)
                     .font(.system(size: 16))
@@ -209,6 +222,7 @@ struct SettingsView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .simultaneousGesture(TapGesture().onEnded { Haptics.tap() })
     }
 
     /// The computer this phone is pointed at, at the top where the question "which
