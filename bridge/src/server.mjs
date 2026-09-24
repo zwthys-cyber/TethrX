@@ -11,6 +11,7 @@
 //   POST /api/sessions/:id/queue         -> { text } follow-up; runs now if idle
 //   POST /api/sessions/:id/branch        -> fork this session, carrying a handoff
 //   GET  /api/sessions/:id/stream        -> SSE stream of normalized Grok events
+//   GET  /api/sessions/:id/media?name=images/1.jpg -> one generated image from that grok session
 //   GET  /api/usage/history?days=30      -> day-by-day token/cost rollups
 //   GET  /                               -> bundled web test client
 //
@@ -43,6 +44,7 @@ import { ensureTls } from "./tls.mjs";
 import * as awake from "./awake.mjs";
 import * as git from "./git.mjs";
 import { listGrokModels } from "./models.mjs";
+import { locateSessionMedia, mediaContentType } from "./media.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(__dirname, "..", "public");
@@ -282,6 +284,16 @@ function send(res, status, body, headers = {}) {
     ...headers,
   });
   res.end(payload);
+}
+
+function sendBytes(res, status, buf, contentType) {
+  res.writeHead(status, {
+    "content-type": contentType,
+    "content-length": buf.length,
+    "x-content-type-options": "nosniff",
+    "cache-control": "private, max-age=86400",
+  });
+  res.end(buf);
 }
 
 // A page fetched cross-site, or reached through a rebound DNS name, must never be able
@@ -1755,6 +1767,23 @@ async function handle(req, res) {
         return send(res, 404, { error: "can't read that file" });
       }
     }
+
+    // One picture Grok generated in this session. The reply names it as
+    // `images/1.jpg`; the bytes stay on this machine and this route is the only
+    // way the phone can see them. Anything outside that session's images/ is not
+    // a picture we will hand over.
+    if (sub === "media" && req.method === "GET") {
+      const name = url.searchParams.get("name") || "";
+      if (!session.grokSessionId) return send(res, 404, { error: "this session has no generated images yet" });
+      const file = locateSessionMedia(grokHome || homedir(), session.cwd, session.grokSessionId, name);
+      if (!file) return send(res, 404, { error: "image not found" });
+      let buf;
+      try { buf = await readFile(file); } catch { return send(res, 404, { error: "image not found" }); }
+      const LIMIT = 20 * 1024 * 1024;
+      if (buf.length > LIMIT) return send(res, 413, { error: "image is too large to show on the phone" });
+      return sendBytes(res, 200, buf, mediaContentType(name));
+    }
+    if (sub === "media") return send(res, 405, { error: "use GET" });
 
     // Review what Grok changed: /api/sessions/:id/git  (?file=… for one file's diff,
     // ?dir=… to pick among the repos this session touched). Sessions mostly start in

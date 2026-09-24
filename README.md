@@ -35,7 +35,7 @@ Everything below is **built and tested** against a real `grok` install.
 - **Plan mode** — read the plan before Grok builds it.
 - **Review the work** — changed files, per-file diffs, and **commit or discard** from the phone.
 - **Browse the project** — the session's file tree and any text file, read-only, from the phone.
-- **Attach images** — send a screenshot or mockup; the bridge saves it and Grok views the file with its vision-capable read tool. **Text files** from Files or iCloud ride along in the prompt, named and fenced, for the log or config that only exists on your phone.
+- **Attach images** — send a screenshot or mockup; the bridge saves it and Grok views the file with its vision-capable read tool. **Pictures Grok generates** show up in the reply, loaded from that session's `images/` folder. **Text files** from Files or iCloud ride along in the prompt, named and fenced, for the log or config that only exists on your phone.
 - **Scheduled tasks** — "weekdays at 9: pull main and run the tests", fired on your computer's clock, results pushed to your phone.
 - **Slash commands** — grok's skills, plus the built-ins the app can honor.
 - **Queued follow-ups** — line up the next instructions and put your phone away. The queue lives on your computer, so it survives closing the app, and picks up again after a reboot.
@@ -207,7 +207,7 @@ State (pairing token, session registry, redirected grok-home) lives in `~/.grok-
 - [x] Persistence, launchd service, TLS, Keychain, reasoning-effort picker, Face ID lock
 - [ ] **Pinned HTTPS** — self-signed cert with its fingerprint in the pairing QR, so cleartext is never needed
 - [ ] **Relay** — for cellular without Tailscale (`grok agent headless --grok-ws-url wss://…` exists)
-- [ ] **Image attachments** — *blocked:* grok's ACP reports `promptCapabilities.image=false`. Text/file context (`embeddedContext`) works; images await grok support.
+- [x] **Images** — send a photo from the phone (saved for Grok's read tool; ACP still rejects image content blocks). Pictures Grok generates render in the reply.
 
 ---
 
@@ -216,7 +216,7 @@ State (pairing token, session registry, redirected grok-home) lives in `~/.grok-
 ```
 TethrX/
 ├── bridge/
-│   ├── src/{server,acp,grok,sessions,config}.mjs   # daemon (ACP + headless)
+│   ├── src/{server,acp,grok,sessions,config,media}.mjs   # daemon (ACP + headless)
 │   ├── src/{apns,awake,git}.mjs                    # push, sleep prevention, git review
 │   ├── scripts/{install-service,gen-cert}.sh       # launchd + TLS
 │   ├── public/index.html                           # web test client

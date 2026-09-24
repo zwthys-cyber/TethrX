@@ -342,7 +342,8 @@ struct ChatView: View {
                             case .tasks:
                                 TaskListCard(entries: item.planEntries, highlight: finding ? findQuery : "").id(item.id)
                             default:
-                                ChatBubble(item: item, highlight: finding ? findQuery : "").id(item.id)
+                                ChatBubble(item: item, highlight: finding ? findQuery : "",
+                                           sessionId: vm.session.id, client: vm.client).id(item.id)
                                     .contextMenu {
                                         copyButton(item.text)
                                         if item.role == .user, !item.text.isEmpty {
@@ -1383,6 +1384,9 @@ struct ChatBubble: View {
     /// Non-empty while the find bar is open: every occurrence is marked in place, so
     /// a match is visible where it sits rather than only counted in the toolbar.
     var highlight: String = ""
+    /// Which conversation to load generated images from. Empty in previews.
+    var sessionId: String = ""
+    var client: BridgeClient? = nil
 
     /// Grok emits Markdown (**bold**, `code`, links). Render inline markdown while
     /// keeping line breaks; fall back to plain text on partial/streaming input.
@@ -1412,17 +1416,21 @@ struct ChatBubble: View {
         Self.marking(AttributedString(text), query: highlight)
     }
 
-    /// One run of a message: either prose (inline markdown) or a fenced code block.
-    struct Segment {
+    /// One run of a message: prose (inline markdown), a fenced code block, or a
+    /// picture Grok generated (`images/1.jpg` and the markdown link around it).
+    struct Segment: Identifiable {
+        let id: String
         let isCode: Bool
+        let isImage: Bool
         let language: String
         let text: String
     }
 
     /// Split a (possibly still-streaming) message on ``` fences so code renders as a
-    /// real block instead of collapsing into inline text.
+    /// real block instead of collapsing into inline text. Image paths inside a fence
+    /// stay code.
     static func segments(_ s: String) -> [Segment] {
-        var out: [Segment] = []
+        var pieces: [(isCode: Bool, language: String, text: String)] = []
         var inCode = false
         var language = ""
         var buf: [String] = []
@@ -1430,7 +1438,7 @@ struct ChatBubble: View {
         func flush() {
             let text = buf.joined(separator: "\n")
             if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                out.append(Segment(isCode: inCode, language: language, text: text))
+                pieces.append((inCode, language, text))
             }
             buf = []
         }
@@ -1451,7 +1459,134 @@ struct ChatBubble: View {
             }
         }
         flush()
-        return out.isEmpty ? [Segment(isCode: false, language: "", text: s)] : out
+        if pieces.isEmpty { pieces = [(false, "", s)] }
+
+        var out: [Segment] = []
+        var n = 0
+        var imageCount = 0
+        for piece in pieces {
+            if piece.isCode {
+                out.append(Segment(id: "c\(n)", isCode: true, isImage: false, language: piece.language, text: piece.text))
+                n += 1
+                continue
+            }
+            for part in splitMedia(piece.text) {
+                if part.isImage {
+                    out.append(Segment(id: "img:\(part.text)#\(imageCount)", isCode: false, isImage: true,
+                                       language: "", text: part.text))
+                    imageCount += 1
+                } else {
+                    out.append(Segment(id: "t\(n)", isCode: false, isImage: false, language: "", text: part.text))
+                }
+                n += 1
+            }
+        }
+        return out
+    }
+
+    /// Same rules as bridge/src/media.mjs `splitMediaRefs`. A finished extension is
+    /// required, so a path still streaming in (`images/1.jp`) stays text.
+    private static let mediaToken = try? NSRegularExpression(
+        pattern: #"(?i)(?:images|videos)/[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.(?:jpe?g|png|gif|webp)"#)
+
+    static func canonicalMedia(_ raw: String) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let slash = trimmed.firstIndex(of: "/") else { return nil }
+        let folder = trimmed[..<slash].lowercased()
+        let file = String(trimmed[trimmed.index(after: slash)...])
+        guard folder == "images" || folder == "videos",
+              !file.contains(".."),
+              file.range(of: #"^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.(?:jpe?g|png|gif|webp)$"#,
+                         options: [.regularExpression, .caseInsensitive]) != nil
+        else { return nil }
+        return "\(folder)/\(file)"
+    }
+
+    /// Text runs and image names, in order. Image names are `images/1.jpg`.
+    static func splitMedia(_ s: String) -> [(isImage: Bool, text: String)] {
+        let ns = s as NSString
+        guard let mediaToken else { return [(false, s)] }
+        let matches = mediaToken.matches(in: s, range: NSRange(location: 0, length: ns.length))
+        var out: [(Bool, String)] = []
+        var cursor = 0
+        for m in matches {
+            var start = m.range.location
+            var end = m.range.location + m.range.length
+            if start < cursor { continue }
+            if start > 0 {
+                let prev = ns.substring(with: NSRange(location: start - 1, length: 1))
+                if prev.range(of: #"[A-Za-z0-9._-]"#, options: .regularExpression) != nil { continue }
+            }
+            let raw = ns.substring(with: m.range)
+            guard let name = canonicalMedia(raw) else { continue }
+            (start, end) = expandMediaWrap(ns, start: start, end: end, name: name)
+            if start < cursor { continue }
+            let before = ns.substring(with: NSRange(location: cursor, length: start - cursor))
+            if !before.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                out.append((false, before))
+            }
+            out.append((true, name))
+            cursor = end
+        }
+        if cursor == 0 { return [(false, s)] }
+        if cursor < ns.length {
+            let rest = ns.substring(from: cursor)
+            if !rest.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                out.append((false, rest))
+            }
+        }
+        return out
+    }
+
+    /// Swallow the markdown link, backticks, or absolute path wrapped around a hit.
+    private static func expandMediaWrap(_ ns: NSString, start: Int, end: Int, name: String) -> (Int, Int) {
+        if start > 0, end < ns.length,
+           ns.substring(with: NSRange(location: start - 1, length: 1)) == "`",
+           ns.substring(with: NSRange(location: end, length: 1)) == "`" {
+            return (start - 1, end + 1)
+        }
+        if end + 1 < ns.length, ns.substring(with: NSRange(location: end, length: 2)) == "](" {
+            let rest = ns.substring(from: end + 2) as NSString
+            let close = rest.range(of: ")")
+            if close.location != NSNotFound {
+                let target = rest.substring(to: close.location)
+                if target.range(of: name, options: .caseInsensitive) != nil {
+                    var from = start
+                    if start > 0, ns.substring(with: NSRange(location: start - 1, length: 1)) == "[" {
+                        from = start - 1
+                    }
+                    if from > 0, ns.substring(with: NSRange(location: from - 1, length: 1)) == "!" {
+                        from -= 1
+                    }
+                    return (from, end + 2 + close.location + 1)
+                }
+            }
+        }
+        if end < ns.length, ns.substring(with: NSRange(location: end, length: 1)) == ")",
+           start >= 2, ns.substring(with: NSRange(location: start - 2, length: 2)) == "](" {
+            var i = start - 3
+            while i >= 0 {
+                let ch = ns.substring(with: NSRange(location: i, length: 1))
+                if ch == "\n" { break }
+                if ch == "[" {
+                    var from = i
+                    if i > 0, ns.substring(with: NSRange(location: i - 1, length: 1)) == "!" { from = i - 1 }
+                    return (from, end + 1)
+                }
+                i -= 1
+            }
+        }
+        if start > 0, ns.substring(with: NSRange(location: start - 1, length: 1)) == "/" {
+            var i = start
+            while i > 0 {
+                let ch = ns.substring(with: NSRange(location: i - 1, length: 1))
+                if ch == " " || ch == "\n" || ch == "\t" || ch == "`" || ch == "(" || ch == "["
+                    || ch == "<" || ch == "\"" || ch == "'" { break }
+                i -= 1
+            }
+            return (i, end)
+        }
+        return (start, end)
     }
 
     var body: some View {
@@ -1497,9 +1632,12 @@ struct ChatBubble: View {
             // No bubble and no "GROK" label: the reply IS the page, which is how
             // Grok's own app reads. Only what you said gets a container.
             VStack(alignment: .leading, spacing: 12) {
-                // Index-keyed so streaming appends don't rebuild every segment.
-                ForEach(Array(Self.segments(item.text).enumerated()), id: \.offset) { _, seg in
-                    if seg.isCode {
+                // Image rows keep a stable id (`img:images/1.jpg#0`) so a streaming
+                // reply does not refetch the picture every time the sentence grows.
+                ForEach(Self.segments(item.text)) { seg in
+                    if seg.isImage {
+                        GeneratedImage(sessionId: sessionId, name: seg.text, client: client)
+                    } else if seg.isCode {
                         CodeBlock(code: seg.text, language: seg.language)
                     } else {
                         Text(Self.marking(Self.markdown(seg.text), query: highlight))
@@ -1540,6 +1678,103 @@ struct ChatBubble: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Grok.danger.opacity(0.10))
             .clipShape(RoundedRectangle(cornerRadius: Grok.R.card, style: .continuous))
+        }
+    }
+}
+
+/// A picture Grok saved for this session. The bytes come from the bridge; a miss
+/// (old bridge, or the file is gone) keeps the name on screen so the reply does
+/// not swallow the only mention of it.
+struct GeneratedImage: View {
+    let sessionId: String
+    let name: String
+    var client: BridgeClient?
+    @State private var image: UIImage?
+    @State private var failed = false
+    @State private var expanded = false
+
+    private static let cache = NSCache<NSString, UIImage>()
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: 420)
+                    .clipShape(RoundedRectangle(cornerRadius: Grok.R.small, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: Grok.R.small, style: .continuous)
+                        .stroke(Grok.hairline, lineWidth: 1))
+                    .contentShape(Rectangle())
+                    .onTapGesture { expanded = true }
+                    .accessibilityLabel(Text("Generated image"))
+                    .accessibilityAddTraits(.isButton)
+            } else if failed {
+                HStack(spacing: 8) {
+                    Image(systemName: "photo")
+                        .font(.system(size: 13, weight: .semibold))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Couldn't load this image")
+                            .font(Grok.sans(14, .medium))
+                        Text(name)
+                            .font(Grok.mono(12))
+                            .foregroundStyle(Grok.textFaint)
+                    }
+                }
+                .foregroundStyle(Grok.textDim)
+                .padding(Grok.pad)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Grok.raised)
+                .clipShape(RoundedRectangle(cornerRadius: Grok.R.small, style: .continuous))
+            } else {
+                ProgressView()
+                    .frame(maxWidth: .infinity, minHeight: 120)
+            }
+        }
+        .task(id: "\(sessionId)|\(name)") { await load() }
+        .fullScreenCover(isPresented: $expanded) {
+            if let image {
+                ZStack {
+                    Color.black.ignoresSafeArea()
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .padding()
+                }
+                .overlay(alignment: .topTrailing) {
+                    Button { expanded = false } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(Color.white.opacity(0.16))
+                            .clipShape(Circle())
+                    }
+                    .padding()
+                    .accessibilityLabel(Text("Close"))
+                }
+            }
+        }
+    }
+
+    private func load() async {
+        let key = "\(sessionId)|\(name)" as NSString
+        if let cached = Self.cache.object(forKey: key) {
+            image = cached
+            failed = false
+            return
+        }
+        guard let client, !sessionId.isEmpty else { failed = true; return }
+        do {
+            let data = try await client.sessionMedia(sessionId: sessionId, name: name)
+            guard let decoded = UIImage(data: data) else { failed = true; return }
+            let scaled = ChatView.downscale(decoded, maxDimension: 1600)
+            Self.cache.setObject(scaled, forKey: key)
+            image = scaled
+            failed = false
+        } catch {
+            failed = true
         }
     }
 }

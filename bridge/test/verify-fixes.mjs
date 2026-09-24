@@ -7,7 +7,7 @@
 // with the reason rather than a bare assertion.
 
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, readFileSync, statSync, existsSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, readFileSync, statSync, existsSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -17,6 +17,7 @@ import * as git from "../src/git.mjs";
 import { parseGrokModels } from "../src/models.mjs";
 import { UsageHistory } from "../src/usage-history.mjs";
 import { promptWithTitleGuidance } from "../src/titles.mjs";
+import { canonicalMediaName, locateSessionMedia, splitMediaRefs } from "../src/media.mjs";
 
 let failures = 0;
 function check(name, fn) {
@@ -451,6 +452,62 @@ check("the list is ordered by what happened last, not by creation", () => {
   newer.emit({ kind: "text", text: "someone came back to this one" });
   assert.ok(newer.updatedAt >= before, "emit touches updatedAt");
   assert.ok(newer.toJSON().updatedAt, "and clients can see it");
+});
+
+check("generated image names are one file under images/ or videos/", () => {
+  assert.equal(canonicalMediaName("images/1.jpg"), "images/1.jpg");
+  assert.equal(canonicalMediaName("  Images/2.PNG "), "images/2.PNG");
+  assert.equal(canonicalMediaName("images/../../package.json"), null);
+  assert.equal(canonicalMediaName("../images/1.jpg"), null);
+  assert.equal(canonicalMediaName("images/foo/bar.jpg"), null);
+  assert.equal(canonicalMediaName("/etc/passwd"), null);
+});
+
+check("reply text turns image references into pictures and leaves the sentence", () => {
+  const linked = splitMediaRefs("结果在 [images/1.jpg](images/1.jpg)。");
+  assert.deepEqual(linked.map((p) => p.type === "image" ? p.name : p.text.trim()), ["结果在", "images/1.jpg", "。"]);
+  const ticked = splitMediaRefs("看 `images/1.jpg` 就行");
+  assert.deepEqual(ticked.filter((p) => p.type === "image").map((p) => p.name), ["images/1.jpg"]);
+  assert.equal(ticked.some((p) => p.type === "text" && p.text.includes("`")), false);
+  const md = splitMediaRefs("![car](images/2.png)");
+  assert.deepEqual(md, [{ type: "image", name: "images/2.png" }]);
+  const abs = splitMediaRefs("saved /root/.grok/sessions/x/images/3.jpg today");
+  assert.deepEqual(abs.filter((p) => p.type === "image").map((p) => p.name), ["images/3.jpg"]);
+  assert.equal(abs.some((p) => p.type === "text" && p.text.includes("/root")), false);
+  const plain = splitMediaRefs("notimages/1.jpg stays");
+  assert.equal(plain.some((p) => p.type === "image"), false);
+  assert.equal(plain[0].text, "notimages/1.jpg stays");
+});
+
+check("session media is only that session's own image, never a symlink out", () => {
+  const home = mkdtempSync(join(tmpdir(), "tethrx-media-"));
+  const cwd = "/work/demo";
+  const group = encodeURIComponent(cwd);
+  const id = "01a0d560-281f-7fc1-b42c-8abed674486b";
+  const other = "01a0d561-281f-7fc1-b42c-8abed674486b";
+  const images = join(home, ".grok", "sessions", group, id, "images");
+  mkdirSync(images, { recursive: true });
+  writeFileSync(join(images, "1.jpg"), "jpeg-bytes");
+  mkdirSync(join(home, ".grok", "sessions", group, other, "images"), { recursive: true });
+  writeFileSync(join(home, ".grok", "sessions", group, other, "images", "1.jpg"), "other");
+  const outside = join(home, "secret.txt");
+  writeFileSync(outside, "nope");
+  symlinkSync(outside, join(images, "leak.jpg"));
+
+  const hit = locateSessionMedia(home, cwd, id, "images/1.jpg");
+  assert.equal(hit, join(images, "1.jpg"));
+  assert.equal(readFileSync(hit, "utf8"), "jpeg-bytes");
+  assert.equal(locateSessionMedia(home, cwd, other, "images/1.jpg").endsWith(`${other}/images/1.jpg`), true);
+  assert.equal(locateSessionMedia(home, cwd, id, "images/leak.jpg"), null);
+  assert.equal(locateSessionMedia(home, cwd, id, "images/../../secret.txt"), null);
+  assert.equal(locateSessionMedia(home, "/somewhere/else", id, "images/1.jpg"), hit);
+
+  const odd = join(home, ".grok", "sessions", "not-the-encoded-cwd", id, "images");
+  mkdirSync(odd, { recursive: true });
+  writeFileSync(join(odd, "9.jpg"), "scanned");
+  const scanned = locateSessionMedia(home, "/no/such", id, "images/9.jpg");
+  assert.equal(scanned, join(odd, "9.jpg"));
+  rmSync(home, { recursive: true, force: true });
 });
 
 rmSync(dir, { recursive: true, force: true });

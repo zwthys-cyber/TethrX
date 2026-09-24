@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.2 (51) — 2026-09-24
+
+### Added
+
+- Show pictures Grok generates in the conversation. A reply that names `images/1.jpg` loads that file from the session and draws it inline.
+
+### Bridge
+
+- Updated `tethrx-bridge` to 0.1.29.
+- `GET /api/sessions/:id/media` serves one generated image from that Grok session and nothing else on disk.
+
 ## 1.1.1 (50) — 2026-09-24
 
 ### Added

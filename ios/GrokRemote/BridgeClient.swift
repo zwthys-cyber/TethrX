@@ -208,6 +208,15 @@ struct BridgeClient {
         return try JSONDecoder().decode(FileContent.self, from: data)
     }
 
+    /// One picture Grok generated in this session (`images/1.jpg`). The bridge
+    /// refuses any path that is not that file.
+    func sessionMedia(sessionId: String, name: String) async throws -> Data {
+        let (data, resp) = try await session.data(
+            for: try getQuery("/api/sessions/\(sessionId)/media", query: ["name": name]))
+        try Self.check(resp)
+        return data
+    }
+
     // MARK: Scheduled tasks
 
     func listSchedules() async throws -> [BridgeSchedule] {
