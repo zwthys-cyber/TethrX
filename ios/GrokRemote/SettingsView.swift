@@ -32,7 +32,7 @@ struct SettingsView: View {
     @State private var removingPlugin: GrokPlugin?
     @ObservedObject private var watch = WatchLink.shared
     @EnvironmentObject private var language: AppLanguage
-    @State private var path: [SettingsPage] = []
+    @State private var selectedPage: SettingsPage?
 
     /// Settings used to be eleven blocks in one scroll, every one of them expanded,
     /// every one of them carrying a paragraph of explanation: about fifteen hundred
@@ -75,22 +75,10 @@ struct SettingsView: View {
         }
     }
     var body: some View {
-        NavigationStack(path: $path) {
+        NavigationStack {
             ZStack {
                 Grok.bg.ignoresSafeArea()
-                ScrollView {
-                    index
-                        .padding(.horizontal, Grok.gutter).padding(.vertical, 20)
-                }
-                .scrollIndicators(.hidden)
-            }
-            .navigationDestination(for: SettingsPage.self) { page in
-                ZStack {
-                    // Keep an opaque canvas mounted for the whole push transition.
-                    // A ScrollView background arrives a frame late on iOS 26,
-                    // exposing the sheet's grey presentation layer and occasionally
-                    // leaving it visible after an interrupted navigation animation.
-                    Grok.bg.ignoresSafeArea()
+                if let page = selectedPage {
                     ScrollView {
                         VStack(alignment: .leading, spacing: Grok.groupGap) {
                             body(of: page)
@@ -98,10 +86,15 @@ struct SettingsView: View {
                         .padding(.horizontal, Grok.gutter).padding(.vertical, 20)
                     }
                     .scrollIndicators(.hidden)
+                    .id(page)
+                } else {
+                    ScrollView {
+                        index
+                            .padding(.horizontal, Grok.gutter).padding(.vertical, 20)
+                    }
+                    .scrollIndicators(.hidden)
+                    .id("settings-index")
                 }
-                .navigationTitle(page.title)
-                .navigationBarTitleDisplayMode(.inline)
-                .grokBar()
             }
             .task {
                 #if DEBUG
@@ -109,13 +102,13 @@ struct SettingsView: View {
                 let args = ProcessInfo.processInfo.arguments
                 if let i = args.firstIndex(of: "-settingsAnchor"), i + 1 < args.count,
                    let page = SettingsPage(rawValue: args[i + 1]) {
-                    path.append(page)
+                    selectedPage = page
                 }
                 #endif
                 // The home screen's computer row opens this sheet already on the
                 // Computers page, which is two taps fewer than landing on the index
                 // and hunting for it.
-                if let anchor, let page = SettingsPage(rawValue: anchor) { path.append(page) }
+                if let anchor, let page = SettingsPage(rawValue: anchor) { selectedPage = page }
             }
             .task { await loadUsage() }
             // Switching computers happens inside this very sheet — without this the
@@ -130,10 +123,21 @@ struct SettingsView: View {
             .sheet(isPresented: $showingLibrary) {
                 PromptLibraryView().environmentObject(snippets)
             }
-            .navigationTitle("Settings")
+            .navigationTitle(selectedPage?.title ?? LocalizedStringKey("Settings"))
             .navigationBarTitleDisplayMode(.inline)
             .grokBar()
             .toolbar {
+                if selectedPage != nil {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            Haptics.tap()
+                            selectedPage = nil
+                        } label: {
+                            Label("Settings", systemImage: "chevron.left")
+                        }
+                        .foregroundStyle(Grok.text)
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }.foregroundStyle(Grok.text).fontWeight(.semibold)
                 }
@@ -193,10 +197,10 @@ struct SettingsView: View {
     }
 
     private func indexRow(_ page: SettingsPage, _ icon: String, value: String? = nil) -> some View {
-        // NavigationLink serializes pushes with NavigationStack. The old imperative
-        // button could append twice while the first push animation was in flight,
-        // which intermittently produced a flash or a blank grey destination.
-        NavigationLink(value: page) {
+        Button {
+            Haptics.tap()
+            selectedPage = page
+        } label: {
             HStack(spacing: 14) {
                 Image(systemName: icon)
                     .font(.system(size: 16))
@@ -222,13 +226,12 @@ struct SettingsView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .simultaneousGesture(TapGesture().onEnded { Haptics.tap() })
     }
 
     /// The computer this phone is pointed at, at the top where the question "which
     /// machine am I about to change" gets answered before anything else.
     private var computerCard: some View {
-        Button { Haptics.tap(); path.append(.computers) } label: {
+        Button { Haptics.tap(); selectedPage = .computers } label: {
             HStack(spacing: 12) {
                 Image(systemName: app.connected ? "desktopcomputer" : "desktopcomputer.trianglebadge.exclamationmark")
                     .font(.system(size: 20))
