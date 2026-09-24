@@ -129,18 +129,42 @@ struct UsageHistorySheet: View {
         VStack(alignment: .leading, spacing: 10) {
             ListSectionLabel("By day")
             ForEach(recent.filter { $0.turns > 0 }) { day in
-                HStack(spacing: 10) {
-                    Text(day.date).font(Grok.sans(14)).monospacedDigit().foregroundStyle(Grok.textDim)
-                        .lineLimit(1).minimumScaleFactor(0.7)
-                        .frame(width: 86, alignment: .leading)
-                    Text(Fmt.tokens(day.totalTokens)).font(Grok.sans(15, .semibold)).monospacedDigit()
-                        .foregroundStyle(Grok.text)
-                    Spacer(minLength: 6)
-                    Text(turnsLabel(day.turns)).font(Grok.sans(13)).foregroundStyle(Grok.textFaint)
-                    Text(Fmt.cost(day.costUSD)).font(Grok.sans(14)).monospacedDigit().foregroundStyle(Grok.textDim)
-                        .lineLimit(1).minimumScaleFactor(0.7)
-                        .frame(width: 58, alignment: .trailing)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 10) {
+                        Text(day.date).font(Grok.sans(14)).monospacedDigit().foregroundStyle(Grok.textDim)
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                            .frame(width: 86, alignment: .leading)
+                        Text(Fmt.tokens(day.totalTokens)).font(Grok.sans(15, .semibold)).monospacedDigit()
+                            .foregroundStyle(Grok.text)
+                        Spacer(minLength: 6)
+                        Text(turnsLabel(day.turns)).font(Grok.sans(13)).foregroundStyle(Grok.textFaint)
+                        Text(Fmt.cost(day.costUSD)).font(Grok.sans(14)).monospacedDigit().foregroundStyle(Grok.textDim)
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                            .frame(width: 58, alignment: .trailing)
+                    }
+                    ForEach(day.modelBreakdown, id: \.id) { item in
+                        HStack(spacing: 8) {
+                            Rectangle().fill(Grok.hairlineStrong).frame(width: 12, height: 1)
+                            Text(item.id).font(Grok.mono(12)).foregroundStyle(Grok.textDim)
+                                .lineLimit(1).truncationMode(.middle)
+                            Spacer(minLength: 6)
+                            Text(Fmt.tokens(item.usage.totalTokens)).font(Grok.sans(12)).monospacedDigit()
+                                .foregroundStyle(Grok.textFaint)
+                            Text(turnsLabel(item.usage.turns)).font(Grok.sans(12)).foregroundStyle(Grok.textFaint)
+                            Text(Fmt.cost(item.usage.costUSD)).font(Grok.sans(12)).monospacedDigit()
+                                .foregroundStyle(Grok.textFaint)
+                                .frame(width: 52, alignment: .trailing)
+                        }
+                        .padding(.leading, 8)
+                        .accessibilityElement(children: .combine)
+                    }
+                    if day.modelBreakdown.isEmpty {
+                        Text("Model breakdown was not recorded for this day.")
+                            .font(Grok.sans(12)).foregroundStyle(Grok.textFaint)
+                            .padding(.leading, 8)
+                    }
                 }
+                .padding(.vertical, 2)
             }
         }
     }

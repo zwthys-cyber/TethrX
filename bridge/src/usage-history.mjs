@@ -9,11 +9,26 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const KEEP_DAYS = 120;
 
-function emptyDay() {
+function emptyCounters() {
   return {
     turns: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0,
     cachedReadTokens: 0, totalTokens: 0, costUsdTicks: 0, apiDurationMs: 0,
   };
+}
+
+function emptyDay() {
+  return { ...emptyCounters(), models: {} };
+}
+
+function addUsage(bucket, usage) {
+  bucket.turns += 1;
+  bucket.inputTokens += usage.inputTokens || 0;
+  bucket.outputTokens += usage.outputTokens || 0;
+  bucket.reasoningTokens += usage.reasoningTokens || 0;
+  bucket.cachedReadTokens += usage.cachedReadTokens || 0;
+  bucket.totalTokens += usage.totalTokens || 0;
+  bucket.costUsdTicks += usage.costUsdTicks || 0;
+  bucket.apiDurationMs += usage.apiDurationMs || 0;
 }
 
 /** Local calendar day (YYYY-MM-DD). Deliberately local, not UTC: the user reads this
@@ -40,18 +55,18 @@ export class UsageHistory {
   }
 
   /** Fold one turn's reported usage into today's bucket. */
-  record(usage) {
+  record(usage, modelId = "") {
     if (!usage || typeof usage !== "object") return;
     const key = today();
     const day = this._days.get(key) || emptyDay();
-    day.turns += 1;
-    day.inputTokens += usage.inputTokens || 0;
-    day.outputTokens += usage.outputTokens || 0;
-    day.reasoningTokens += usage.reasoningTokens || 0;
-    day.cachedReadTokens += usage.cachedReadTokens || 0;
-    day.totalTokens += usage.totalTokens || 0;
-    day.costUsdTicks += usage.costUsdTicks || 0;
-    day.apiDurationMs += usage.apiDurationMs || 0;
+    addUsage(day, usage);
+    // Keep the exact id Grok reports. If an older Grok omits it, the usage is still
+    // visible instead of disappearing from the per-model sum.
+    const model = String(modelId || "unknown").trim() || "unknown";
+    if (!day.models || typeof day.models !== "object" || Array.isArray(day.models)) day.models = {};
+    const modelBucket = { ...emptyCounters(), ...(day.models[model] || {}) };
+    addUsage(modelBucket, usage);
+    day.models[model] = modelBucket;
     this._days.set(key, day);
     this._dirty = true;
   }
@@ -92,7 +107,9 @@ export class UsageHistory {
     try {
       const parsed = JSON.parse(readFileSync(this._path, "utf8"));
       for (const [k, v] of Object.entries(parsed?.days || {})) {
-        this._days.set(k, { ...emptyDay(), ...v });
+        const models = v?.models && typeof v.models === "object" && !Array.isArray(v.models)
+          ? v.models : {};
+        this._days.set(k, { ...emptyDay(), ...v, models });
       }
     } catch { /* ignore a corrupt file */ }
   }

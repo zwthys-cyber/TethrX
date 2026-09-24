@@ -795,7 +795,7 @@ async function summarizeForHandoff(session, label) {
     const acp = await ensureAcp(session);
     const result = await acp.prompt(SUMMARY_PROMPT);
     session.addUsage(result);
-    usageHistory.record(result.usage);
+    usageHistory.record(result.usage, result.modelId || session.model || session.usage.lastModelId);
     session.emit({ kind: "usage", usage: session.usage });
     session.emit({ kind: "turn_complete", stopReason: result.stopReason });
   } catch (err) {
@@ -989,7 +989,7 @@ function startAcpTurn(session, body) {
       const acp = await ensureAcp(session);
       const result = await acp.prompt(body.text);
       session.addUsage(result);                                    // fold grok's token report in
-      usageHistory.record(result.usage);                           // day-by-day rollup
+      usageHistory.record(result.usage, result.modelId || session.model || session.usage.lastModelId);
       session.emit({ kind: "usage", usage: session.usage });       // live meter update
       warnContextIfNearlyFull(session);
       session.emit({ kind: "turn_complete", stopReason: result.stopReason });

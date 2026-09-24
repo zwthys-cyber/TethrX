@@ -71,6 +71,19 @@ struct QueuedMessage: Codable, Identifiable, Hashable {
 }
 
 /// One day's token/cost totals from `GET /api/usage/history`.
+struct ModelUsage: Codable, Hashable {
+    var turns = 0
+    var inputTokens = 0
+    var outputTokens = 0
+    var reasoningTokens = 0
+    var cachedReadTokens = 0
+    var totalTokens = 0
+    var costUsdTicks: Double = 0
+    var apiDurationMs: Double = 0
+
+    var costUSD: Double { costUsdTicks / 1e10 }
+}
+
 struct UsageDay: Codable, Identifiable, Hashable {
     var date: String       // YYYY-MM-DD, the computer's local day
     var turns = 0
@@ -81,9 +94,21 @@ struct UsageDay: Codable, Identifiable, Hashable {
     var totalTokens = 0
     var costUsdTicks: Double = 0
     var apiDurationMs: Double = 0
+    /// Optional keeps decoding compatible with bridges/history files from before
+    /// model-level rollups existed.
+    var models: [String: ModelUsage]?
 
     var id: String { date }
     var costUSD: Double { costUsdTicks / 1e10 }
+    var modelBreakdown: [(id: String, usage: ModelUsage)] {
+        (models ?? [:]).map { (id: $0.key, usage: $0.value) }
+            .sorted {
+                if $0.usage.totalTokens != $1.usage.totalTokens {
+                    return $0.usage.totalTokens > $1.usage.totalTokens
+                }
+                return $0.id < $1.id
+            }
+    }
 
     /// "Mon", for the chart's axis.
     var weekdayLabel: String {

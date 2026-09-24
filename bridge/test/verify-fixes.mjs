@@ -15,6 +15,7 @@ import { SessionStore } from "../src/sessions.mjs";
 import { AcpSession } from "../src/acp.mjs";
 import * as git from "../src/git.mjs";
 import { parseGrokModels } from "../src/models.mjs";
+import { UsageHistory } from "../src/usage-history.mjs";
 
 let failures = 0;
 function check(name, fn) {
@@ -42,6 +43,17 @@ check("grok model output is parsed without hard-coded ids", () => {
     models: ["grok-next", "grok-fast", "grok-old"],
     defaultModel: "grok-next",
   });
+});
+
+check("daily usage is split by the model that served each turn", () => {
+  const history = new UsageHistory();
+  history.record({ totalTokens: 120, inputTokens: 100, outputTokens: 20, costUsdTicks: 8 }, "grok-a");
+  history.record({ totalTokens: 30, inputTokens: 20, outputTokens: 10, costUsdTicks: 2 }, "grok-b");
+  const day = history.list(1)[0];
+  assert.equal(day.totalTokens, 150);
+  assert.equal(day.models["grok-a"].totalTokens, 120);
+  assert.equal(day.models["grok-a"].turns, 1);
+  assert.equal(day.models["grok-b"].costUsdTicks, 2);
 });
 
 // --- approval policy --------------------------------------------------------

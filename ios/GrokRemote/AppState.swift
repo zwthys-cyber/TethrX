@@ -22,7 +22,7 @@ final class AppState: ObservableObject {
     /// it, answering an approval from the session list and the whole watch app go
     /// quietly missing rather than failing — which is exactly the kind of silently
     /// inert feature the update banner exists to prevent.
-    nonisolated static let wantedBridgeVersion = "0.1.24"
+    nonisolated static let wantedBridgeVersion = "0.1.25"
     var bridgeNeedsUpdate: Bool {
         connected && Semver.isOlder(health?.version, than: Self.wantedBridgeVersion)
     }
