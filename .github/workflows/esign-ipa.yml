@@ -1,0 +1,113 @@
+name: ESign IPA
+
+# Unsigned IPA for iPhone 17 Pro Max on iOS 26.6.
+# Sign it on the phone with 全能签 and a certificate whose provisioning
+# profile contains that device. TrollStore cannot install on iOS 26.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/esign-ipa.yml
+      - ios/**
+
+permissions:
+  contents: write
+
+jobs:
+  ipa:
+    name: unsigned iOS 26.6 IPA for 全能签
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Select Xcode 26.6
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app
+          xcodebuild -version
+
+      # A single personal certificate covers one bundle id. The watch app,
+      # widget, and share extension each need their own id, so this package
+      # keeps only the iPhone app. Pairing stays in the app's own keychain.
+      - name: Keep the iPhone app only
+        run: |
+          python3 << 'PY'
+          from pathlib import Path
+          path = Path("ios/GrokRemote.xcodeproj/project.pbxproj")
+          text = path.read_text()
+          for line in (
+              "\t\t\t\tABCDEF0123456789ABCF0030 /* Embed Watch Content */,\n",
+              "\t\t\t\tABCDEF0123456789ABCF0041 /* PBXTargetDependency */,\n",
+              "\t\t\t\tE69633B7E40A946D3938A446 /* Embed Foundation Extensions */,\n",
+              "\t\t\t\t01312C879EC3DA4E268FE0E8 /* PBXTargetDependency */,\n",
+              "\t\t\t\tABCDEF0123456789ABCE0052 /* PBXTargetDependency */,\n",
+          ):
+              text = text.replace(line, "")
+          path.write_text(text)
+          PY
+
+      - name: Build GrokRemote for iPhone
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project ios/GrokRemote.xcodeproj \
+            -scheme GrokRemote \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            CODE_SIGN_STYLE=Manual \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            COMPILER_INDEX_STORE_ENABLE=NO
+
+      - name: Package unsigned IPA
+        run: |
+          set -euo pipefail
+          APP="$(find "$RUNNER_TEMP/DerivedData/Build/Products" -type d -name 'GrokRemote.app' | head -1)"
+          test -n "$APP"
+          echo "App: $APP"
+          # 全能签 replaces the signature. Leave no ldid or ad-hoc signature,
+          # and no extension bundles a one-app certificate cannot cover.
+          rm -rf "$APP/PlugIns" "$APP/Watch" "$APP/_CodeSignature"
+          find "$APP" -type d -name '_CodeSignature' -print0 | xargs -0 rm -rf
+          MIN="$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$APP/Info.plist")"
+          echo "MinimumOSVersion=$MIN"
+          rm -rf Payload
+          mkdir Payload
+          cp -R "$APP" Payload/TethrX.app
+          /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName TethrX' Payload/TethrX.app/Info.plist
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' Payload/TethrX.app/Info.plist)" = "GrokRemote"
+          test -x Payload/TethrX.app/GrokRemote
+          zip -r -y TethrX-iPhone17ProMax-iOS26.6-esign.ipa Payload
+          ls -lh TethrX-iPhone17ProMax-iOS26.6-esign.ipa
+          file Payload/TethrX.app/GrokRemote
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: TethrX-iPhone17ProMax-iOS26.6-esign
+          path: TethrX-iPhone17ProMax-iOS26.6-esign.ipa
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="iphone17pm-ios26.6"
+          python3 -c 'from pathlib import Path; Path("/tmp/esign-notes.md").write_text("""Unsigned TethrX IPA for iPhone 17 Pro Max on iOS 26.6.\n\nBuilt with Xcode 26.6. There is no signature in this file. Import it into 全能签 with your own p12 certificate and the matching mobileprovision. That profile must list this iPhone'\''s UDID.\n\nThis package is the iPhone app only. The Watch app, home-screen widget, and share extension are omitted so one App ID can sign it. Pair from the app. TrollStore builds remain on the iOS 17 releases and do not install on iOS 26.\n""")'
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" TethrX-iPhone17ProMax-iOS26.6-esign.ipa --clobber
+            gh release edit "$TAG" --notes-file /tmp/esign-notes.md --title "TethrX 1.1.5 for iPhone 17 Pro Max / iOS 26.6 (全能签)" --prerelease
+          else
+            gh release create "$TAG" TethrX-iPhone17ProMax-iOS26.6-esign.ipa \
+              --title "TethrX 1.1.5 for iPhone 17 Pro Max / iOS 26.6 (全能签)" \
+              --notes-file /tmp/esign-notes.md \
+              --prerelease \
+              --latest=false
+          fi

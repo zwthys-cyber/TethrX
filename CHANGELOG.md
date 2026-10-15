@@ -1,5 +1,9 @@
 # Changelog
 
+## Sideload
+
+- GitHub Actions workflow **ESign IPA** builds an unsigned IPA for 全能签 on iPhone 17 Pro Max / iOS 26.6. The Watch app, widget, and share extension are left out so a single App ID certificate can sign it. TrollStore packages stay on the iOS 17 release.
+
 ## 1.1.5 (55) — 2026-09-25
 
 ### Fixed
