@@ -20,7 +20,7 @@ struct HealthInfo: Codable {
     var grokLatest: String? = nil   // newest grok build (from `grok update --check`)
     var grokUpdateAvailable: Bool? = nil
     var version: String?       // the bridge's own version
-    var latestVersion: String? // newest on npm (checked at most daily; nil offline)
+    var latestVersion: String? // newest GitHub bridge release (checked at most daily; nil offline)
     var tls: TlsInfo?
 }
 

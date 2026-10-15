@@ -11,18 +11,18 @@ on:
         required: true
         default: nsk-164.v-team.cn
         type: string
-  push:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
     branches: [main]
-    paths:
-      - .github/workflows/esign-ipa.yml
-      - ios/**
-      - docs/iphone17pm-ios26.6.md
 
 permissions:
   contents: write
 
 jobs:
   ipa:
+    # CI publishes a compatible bridge before this app is distributed.
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     name: unsigned iOS 26.6 IPA for 全能签
     runs-on: macos-26
     timeout-minutes: 45
@@ -30,6 +30,8 @@ jobs:
       ESIGN_BUNDLE_ID: ${{ inputs.bundle_id || 'nsk-164.v-team.cn' }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Select Xcode 26.6
         run: |

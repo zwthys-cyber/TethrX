@@ -23,6 +23,9 @@ final class AppState: ObservableObject {
     /// quietly missing rather than failing — which is exactly the kind of silently
     /// inert feature the update banner exists to prevent.
     nonisolated static let wantedBridgeVersion = "0.1.29"
+    /// Download the bridge published by this repository's successful GitHub CI.
+    /// Installing by npm package name can select an older upstream release.
+    nonisolated static let bridgeInstallCommand = "npm i -g --prefer-online https://github.com/zwthys-cyber/TethrX/releases/download/bridge-latest/tethrx-bridge.tgz"
     var bridgeNeedsUpdate: Bool {
         connected && Semver.isOlder(health?.version, than: Self.wantedBridgeVersion)
     }
@@ -457,6 +460,14 @@ final class AppState: ObservableObject {
             publishWidgetSnapshot()
         }
         catch { if !quiet { errorMessage = friendly(error) } }
+    }
+
+    /// Update the list immediately when the open chat receives a title change.
+    func updateSessionTitle(_ id: String, title: String) {
+        guard let index = sessions.firstIndex(where: { $0.id == id }),
+              sessions[index].title != title else { return }
+        sessions[index].title = title
+        publishWidgetSnapshot()
     }
 
     /// Push a small status snapshot to the home-screen widget via the app group.

@@ -15,7 +15,8 @@ The bridge runs on your computer and exposes your Grok Build install to the Teth
 ## Run
 
 ```bash
-npx tethrx-bridge
+npm i -g --prefer-online https://github.com/zwthys-cyber/TethrX/releases/download/bridge-latest/tethrx-bridge.tgz
+GROK_REMOTE_HOST=0.0.0.0 tethrx-bridge
 ```
 
 It prints a **bridge address** and a **pairing token**. On the same computer, open **http://localhost:4180/pair** to get a scannable QR code, then in the TethrX app tap **Scan to pair**. That page is loopback-only, so the token never leaves the machine.
@@ -23,7 +24,6 @@ It prints a **bridge address** and a **pairing token**. On the same computer, op
 Prefer it always-on? Install it globally, then install the included launchd/systemd user service:
 
 ```bash
-npm i -g tethrx-bridge
 tethrx-bridge service install --host 0.0.0.0
 ```
 
@@ -48,6 +48,17 @@ Environment variables (all optional):
 | `GROK_REMOTE_TLS_CERT` / `_KEY` | — | Serve HTTPS |
 
 State (pairing token, session registry) lives in `~/.grok-remote/` — never in this package.
+
+## Updates
+
+This fork distributes the tested bridge through [GitHub Releases](https://github.com/zwthys-cyber/TethrX/releases/tag/bridge-latest). Publishing source on GitHub does not update the npm package name; installing by name can select an older version. To update an installed background service:
+
+```sh
+npm i -g --prefer-online https://github.com/zwthys-cyber/TethrX/releases/download/bridge-latest/tethrx-bridge.tgz
+tethrx-bridge service restart
+```
+
+For a foreground bridge, stop it with Ctrl-C and run it again with the same host settings. For a headless Linux server, follow the [phone-only server guide](https://github.com/zwthys-cyber/TethrX/blob/main/docs/linux-server.md); no desktop browser is needed.
 
 ## License
 

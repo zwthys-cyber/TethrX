@@ -592,16 +592,18 @@ struct SessionListView: View {
                         .font(.system(size: 12)).foregroundStyle(Grok.text)
                     Text("Your bridge needs an update").font(Grok.sans(15, .semibold)).foregroundStyle(Grok.text)
                 }
-                Text("This version of the app needs bridge \(AppState.wantedBridgeVersion) or newer. On your computer, run:")
+                Text("This app needs bridge \(AppState.wantedBridgeVersion) or newer. In your server or computer terminal, run:")
                     .font(Grok.sans(14)).foregroundStyle(Grok.textDim).lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 8) {
-                    Text("npm i -g tethrx-bridge")
-                        .font(Grok.mono(13)).foregroundStyle(Grok.text)
-                        .lineLimit(1).minimumScaleFactor(0.7)
-                    Spacer(minLength: 0)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        Text(verbatim: AppState.bridgeInstallCommand)
+                            .font(Grok.mono(13)).foregroundStyle(Grok.text)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .textSelection(.enabled)
+                    }
                     Button {
-                        UIPasteboard.general.string = "npm i -g tethrx-bridge"
+                        UIPasteboard.general.string = AppState.bridgeInstallCommand
                         Haptics.tap()
                     } label: {
                         Image(systemName: "doc.on.doc").font(.system(size: 11, weight: .medium)).foregroundStyle(Grok.textDim)

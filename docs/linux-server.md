@@ -36,10 +36,11 @@ tailscale ip -4
 
 用 iPhone 打开终端显示的授权网址，将服务器加入你的网络。在 iPhone 安装 Tailscale，登录同一网络并打开 VPN 连接。记下服务器的 `100.x.y.z` 地址。
 
-让桥接服务只监听服务器的 Tailscale 地址：
+先安装本仓库在 GitHub 检查通过后发布的桥接包，再让它只监听服务器的 Tailscale 地址：
 
 ```sh
-GROK_REMOTE_HOST="$(tailscale ip -4)" npx tethrx-bridge
+npm i -g --prefer-online https://github.com/zwthys-cyber/TethrX/releases/download/bridge-latest/tethrx-bridge.tgz
+GROK_REMOTE_HOST="$(tailscale ip -4)" tethrx-bridge
 ```
 
 首次配对时保持 SSH 会话打开。终端会显示配对令牌，在 App 填写：
@@ -64,7 +65,6 @@ node -p 'JSON.parse(require("fs").readFileSync(require("os").homedir()+"/.grok-r
 先结束前台桥接进程（Ctrl-C），再以相同的非 root Linux 账户安装后台服务：
 
 ```sh
-npm i -g tethrx-bridge
 tethrx-bridge service install --host "$(tailscale ip -4)"
 sudo loginctl enable-linger "$USER"
 ```
@@ -72,6 +72,19 @@ sudo loginctl enable-linger "$USER"
 Linux 服务需要可用的 `systemd --user`。不支持 systemd 的容器应由容器平台或管理员配置进程管理。服务保存安装时的 Tailscale 地址；服务器重新加入网络导致地址改变时，需要更新服务配置。
 
 在 iPhone 开启 Tailscale 并保持服务器在线，即可通过蜂窝网络连接。无需将 4180 端口映射到公网。自定义 Tailscale 访问规则或服务器防火墙时，需要允许手机经 Tailscale 访问该端口。
+
+## 以后安装和更新
+
+GitHub 源码更新不会自动发布到 npm。按包名运行 `npx tethrx-bridge` 或 `npm i -g tethrx-bridge` 仍可能获得旧版，因此本仓库统一使用上面的 GitHub 下载地址。该地址指向通过 GitHub CI 的桥接安装包；工作流会检查包的版本不低于 App 要求，并安装、启动打包后的程序。
+
+需要更新已安装的后台桥接时，在同一个 Linux 账户下执行：
+
+```sh
+npm i -g --prefer-online https://github.com/zwthys-cyber/TethrX/releases/download/bridge-latest/tethrx-bridge.tgz
+tethrx-bridge service restart
+```
+
+前台运行的桥接需先 Ctrl-C 停止，再使用原来的 `GROK_REMOTE_HOST` 地址启动。更新不会删除 `~/.grok-remote/` 中的配对、会话和证书。不要再用 npm 包名覆盖安装，否则可能降回旧版。
 
 ## 应用关闭时的提醒
 

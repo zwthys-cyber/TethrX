@@ -17,6 +17,7 @@ import * as git from "../src/git.mjs";
 import { parseGrokModels } from "../src/models.mjs";
 import { UsageHistory } from "../src/usage-history.mjs";
 import { promptWithTitleGuidance } from "../src/titles.mjs";
+import { fetchLatestBridgeVersion, isNewerBridgeVersion } from "../src/distribution.mjs";
 import { canonicalMediaName, locateSessionMedia, splitMediaRefs } from "../src/media.mjs";
 
 let failures = 0;
@@ -36,6 +37,25 @@ function check(name, fn) {
 
 const dir = mkdtempSync(join(tmpdir(), "tethrx-test-"));
 const store = new SessionStore(join(dir, "sessions.json"));
+
+check("bridge update checks do not recommend downgrades or malformed versions", () => {
+  assert.equal(isNewerBridgeVersion("0.1.23", "0.1.29"), false);
+  assert.equal(isNewerBridgeVersion("0.1.30", "0.1.29"), true);
+  assert.equal(isNewerBridgeVersion("0.1.9", "0.1.29"), false);
+  assert.equal(isNewerBridgeVersion("0.1.29", "0.1.29"), false);
+  assert.equal(isNewerBridgeVersion("latest", "0.1.29"), false);
+});
+
+await check("release discovery uses GitHub and tolerates offline or invalid metadata", async () => {
+  const result = await fetchLatestBridgeVersion(async (url) => {
+    assert.match(url, /^https:\/\/github\.com\/zwthys-cyber\/TethrX\/releases\/download\/bridge-latest\//);
+    return { ok: true, json: async () => ({ version: "0.1.30" }) };
+  });
+  assert.equal(result, "0.1.30");
+  assert.equal(await fetchLatestBridgeVersion(async () => ({ ok: false })), null);
+  assert.equal(await fetchLatestBridgeVersion(async () => ({ ok: true, json: async () => ({ version: "latest" }) })), null);
+  assert.equal(await fetchLatestBridgeVersion(async () => { throw Error("offline"); }), null);
+});
 
 // --- model discovery -------------------------------------------------------
 

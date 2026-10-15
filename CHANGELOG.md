@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1.8 (58) — 2026-10-15
+
+### Fixed
+
+- Automatically generated session titles now update the open chat header and session list. Title refreshes read the server's canonical name, preserving manual renames and ignoring stale historical title events.
+- Installation and update instructions now use this repository's GitHub bridge package. Installing by npm package name could return 0.1.23 even though the app requires 0.1.29.
+
+### Distribution
+
+- Bridge 0.1.30 checks this fork's GitHub release for updates and does not recommend downgrades.
+- GitHub CI installs and starts the packaged tarball, checks its version against the app requirement, and publishes it at the stable `bridge-latest` download address.
+- Automatic ESign builds wait for successful CI and bridge publication, so the app's install command points to an available compatible package.
+
 ## 1.1.7 (57) — 2026-10-15
 
 ### Added

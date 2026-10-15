@@ -29,6 +29,8 @@ jobs:
             echo "bridge version '$V' must be exactly three integers"; exit 1; }
       - name: unit
         run: node bridge/test/verify-fixes.mjs
+      - name: bridge meets app version requirement
+        run: node bridge/test/verify-distribution.mjs
       - name: smoke
         run: |
           export HOME="$RUNNER_TEMP/home"
@@ -102,6 +104,36 @@ jobs:
           # `service` must never fall through into starting a server
           node bridge/src/server.mjs service status | grep -q 'TethrX bridge service'
 
+      - name: Package and install the distributed bridge
+        run: |
+          set -euo pipefail
+          DIST="$RUNNER_TEMP/bridge-dist"
+          INSTALL="$RUNNER_TEMP/bridge-install"
+          mkdir -p "$DIST"
+          VERSION="$(node -p "require('./bridge/package.json').version")"
+          npm pack ./bridge --ignore-scripts --pack-destination "$DIST"
+          mv "$DIST/tethrx-bridge-$VERSION.tgz" "$DIST/tethrx-bridge.tgz"
+          npm install --global --ignore-scripts --no-audit --no-fund --prefix "$INSTALL" "$DIST/tethrx-bridge.tgz"
+          TETHRX_MANIFEST_PATH="$DIST/bridge-version.json" node bridge/test/verify-distribution.mjs "$INSTALL/lib/node_modules/tethrx-bridge"
+          (cd "$DIST" && sha256sum tethrx-bridge.tgz > tethrx-bridge.tgz.sha256)
+          # Run the INSTALLED package, so missing files or a bad bin entry cannot
+          # pass just because the source checkout starts correctly.
+          GROK_REMOTE_HOST=127.0.0.1 GROK_REMOTE_PORT=4190 GROK_REMOTE_TLS_PORT=4191 \
+            GROK_REMOTE_GROK_AUTO_UPDATE=0 "$INSTALL/bin/tethrx-bridge" > "$RUNNER_TEMP/bridge-package.log" 2>&1 &
+          PACKAGE_PID=$!
+          trap 'kill "$PACKAGE_PID" 2>/dev/null || true' EXIT
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:4190/api/health -o "$RUNNER_TEMP/bridge-package-health.json"; then break; fi
+            sleep 1
+          done
+          node -e 'const fs=require("fs");const h=JSON.parse(fs.readFileSync(process.argv[1]));if(!h.ok||h.version!==process.argv[2])throw Error("Installed bridge does not serve the expected version")' "$RUNNER_TEMP/bridge-package-health.json" "$VERSION"
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: tethrx-bridge-package
+          path: ${{ runner.temp }}/bridge-dist/*
+          if-no-files-found: error
+
   ios:
     name: ios (build)
     runs-on: macos-26
@@ -137,3 +169,43 @@ jobs:
           test -d "$APP/PlugIns/TethrXWidget.appex" || { echo "widget not embedded"; exit 1; }
           test -d "$APP/PlugIns/TethrXShare.appex" || { echo "share extension not embedded"; exit 1; }
           echo "watch app, its complication, the widget and the share extension are all embedded"
+
+  bridge-release:
+    name: publish tested bridge package
+    needs: [bridge, ios]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: tethrx-bridge-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: tethrx-bridge-package
+          path: bridge-dist
+      - name: Publish GitHub bridge package
+        working-directory: bridge-dist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          VERSION="$(jq -r .version bridge-version.json)"
+          printf 'Bridge version: %s\nSource commit: %s\n\nInstall or update:\n\n```sh\nnpm i -g --prefer-online https://github.com/zwthys-cyber/TethrX/releases/download/bridge-latest/tethrx-bridge.tgz\n```\n\nRestart the bridge after updating. Pairing and session data are retained.\n' "$VERSION" "$GITHUB_SHA" > bridge-notes.md
+          if gh release view bridge-latest >/dev/null 2>&1; then
+            gh release upload bridge-latest tethrx-bridge.tgz tethrx-bridge.tgz.sha256 bridge-version.json --clobber
+            gh release edit bridge-latest --title "TethrX Bridge $VERSION" --notes-file bridge-notes.md --prerelease
+          else
+            gh release create bridge-latest tethrx-bridge.tgz tethrx-bridge.tgz.sha256 bridge-version.json \
+              --target "$GITHUB_SHA" --title "TethrX Bridge $VERSION" --notes-file bridge-notes.md --prerelease --latest=false
+          fi
+      - name: Install through the published download URL
+        working-directory: bridge-dist
+        run: |
+          set -euo pipefail
+          PREFIX="$RUNNER_TEMP/published-bridge"
+          npm i -g --prefer-online --ignore-scripts --no-audit --no-fund --prefix "$PREFIX" \
+            https://github.com/zwthys-cyber/TethrX/releases/download/bridge-latest/tethrx-bridge.tgz
+          node -e 'const fs=require("fs");const expected=JSON.parse(fs.readFileSync("bridge-version.json"));const actual=require(process.argv[1]);if(actual.name!=="tethrx-bridge"||actual.version!==expected.version)throw Error("Published install URL does not deliver the expected bridge")' "$PREFIX/lib/node_modules/tethrx-bridge/package.json"

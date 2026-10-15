@@ -68,16 +68,18 @@ Everything below is **built and tested** against a real `grok` install.
 Needs **Node.js 20+** and **Grok Build** installed + signed in.
 
 ```bash
-npx tethrx-bridge
+npm i -g --prefer-online https://github.com/zwthys-cyber/TethrX/releases/download/bridge-latest/tethrx-bridge.tgz
+GROK_REMOTE_HOST=0.0.0.0 tethrx-bridge
 ```
 
 It prints a **pairing token** and its address.
+
+Install this fork from its **GitHub bridge package**, as above. Updating the GitHub repository does not publish the npm package name; `npx tethrx-bridge` or `npm i -g tethrx-bridge` can still select an older bridge. GitHub CI packages, installs and starts the distributed tarball, checks it meets the app's minimum version, then publishes [the bridge release](https://github.com/zwthys-cyber/TethrX/releases/tag/bridge-latest) before the new ESign app build starts.
 
 **Want it always-on?** Install it as a background service — it then starts when you
 log in and restarts itself if it crashes, so the bridge is still there after a reboot:
 
 ```bash
-npm i -g tethrx-bridge
 tethrx-bridge service install --host 0.0.0.0
 ```
 
@@ -170,7 +172,7 @@ Scope the key to **Sandbox & Production** — App Store and TestFlight builds bo
 **ntfy (no developer account needed).**
 
 ```bash
-GROK_REMOTE_NTFY="https://ntfy.sh/your-secret-topic" npx tethrx-bridge
+GROK_REMOTE_NTFY="https://ntfy.sh/your-secret-topic" tethrx-bridge
 ```
 
 Subscribe to that topic in the [ntfy](https://ntfy.sh) app.

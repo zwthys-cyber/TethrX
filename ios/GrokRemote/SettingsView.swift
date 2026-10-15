@@ -409,8 +409,9 @@ struct SettingsView: View {
                 .font(Grok.sans(15)).foregroundStyle(pinned ? Grok.text : Grok.textDim)
             }
             if !pinned {
-                Text("Update the bridge (npm i -g tethrx-bridge) and reconnect. The app upgrades to pinned HTTPS automatically.")
+                Text("Install the bridge from the GitHub package below, then restart it and reconnect. The app upgrades to pinned HTTPS automatically.")
                     .font(Grok.sans(13)).foregroundStyle(Grok.textFaint).lineSpacing(2)
+                CopyableCode(text: AppState.bridgeInstallCommand)
             }
             HStack {
                 Text("Token").font(Grok.sans(15)).foregroundStyle(Grok.textDim)
@@ -979,8 +980,9 @@ struct SettingsView: View {
                 row("Bridge", bridgeOutdated ? String(loc: "v\(v) · update available") : "v\(v)")
             }
             if bridgeOutdated {
-                Text("On your computer: npm i -g tethrx-bridge, then restart the bridge.")
+                Text("In your server or computer terminal, install the GitHub bridge package, then restart the bridge and reconnect.")
                     .font(Grok.sans(13)).foregroundStyle(Grok.textFaint)
+                CopyableCode(text: AppState.bridgeInstallCommand)
             }
             Text("A client for Grok Build · independent, not affiliated with xAI.")
                 .font(Grok.sans(13)).foregroundStyle(Grok.textFaint)

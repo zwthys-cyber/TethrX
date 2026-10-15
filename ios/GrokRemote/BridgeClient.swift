@@ -88,6 +88,12 @@ struct BridgeClient {
         return try JSONDecoder().decode(HealthInfo.self, from: data)
     }
 
+    func sessionInfo(_ id: String) async throws -> SessionInfo {
+        let (data, resp) = try await session.data(for: try request("/api/sessions/\(id)"))
+        try Self.check(resp)
+        return try JSONDecoder().decode(SessionInfo.self, from: data)
+    }
+
     func listSessions() async throws -> [SessionInfo] {
         let (data, resp) = try await session.data(for: try request("/api/sessions"))
         try Self.check(resp)

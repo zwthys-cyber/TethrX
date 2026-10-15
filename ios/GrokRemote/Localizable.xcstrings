@@ -1,6 +1,83 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "This app needs bridge %@ or newer. In your server or computer terminal, run:": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此版本 App 需要桥接 %@ 或更新版本。在你的服务器或电脑终端执行："
+          }
+        }
+      }
+    },
+    "Install the bridge from this project's GitHub release. This includes the version required by the app even when npm's package-name release is older.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从本项目的 GitHub 发布页安装桥接。即使 npm 按包名提供的版本较旧，这个安装包也会满足 App 的版本要求。"
+          }
+        }
+      }
+    },
+    "Start the installed bridge. It prints a pairing token and keeps running. Leave it going.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "启动已安装的桥接服务。它会显示配对令牌并持续运行，请保持服务开启。"
+          }
+        }
+      }
+    },
+    "Install the bridge from the GitHub package below, then restart it and reconnect. The app upgrades to pinned HTTPS automatically.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用下方的 GitHub 安装包更新桥接，然后重启并重新连接。App 会自动切换到证书固定的 HTTPS。"
+          }
+        }
+      }
+    },
+    "In your server or computer terminal, install the GitHub bridge package, then restart the bridge and reconnect.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在服务器或电脑终端安装 GitHub 桥接包，然后重启桥接并重新连接。"
+          }
+        }
+      }
+    },
+    "This needs a newer bridge. Install the GitHub bridge package shown in Settings, then restart it and reconnect.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此功能需要更新桥接。请使用设置中提供的 GitHub 安装包，安装后重启桥接并重新连接。"
+          }
+        }
+      }
+    },
+    "Daily usage needs a newer bridge. Install the GitHub bridge package shown in Settings, then restart it and reconnect.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看每日用量需要更新桥接。请使用设置中提供的 GitHub 安装包，安装后重启桥接并重新连接。"
+          }
+        }
+      }
+    },
     "Connect a computer or server": {
       "extractionState": "manual",
       "localizations": {

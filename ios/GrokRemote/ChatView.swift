@@ -4,6 +4,7 @@ import PhotosUI
 
 /// Live conversation for one session, styled as a Grok Build console.
 struct ChatView: View {
+    @EnvironmentObject private var app: AppState
     @StateObject var vm: ChatViewModel
     @StateObject private var dictation = Dictation()
     @State private var draft = ""
@@ -110,6 +111,11 @@ struct ChatView: View {
             }
         }
         .onAppear { vm.start() }
+        .onReceive(app.$sessions) { sessions in
+            if let updated = sessions.first(where: { $0.id == vm.session.id }) {
+                vm.updateSessionTitle(updated.title)
+            }
+        }
         .onDisappear {
             // Swiping back mid-dictation used to leave the mic hot (privacy dot on,
             // other apps' audio ducked) until the object happened to deallocate.

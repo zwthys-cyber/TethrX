@@ -150,15 +150,17 @@ struct PairingView: View {
             }
         case .run:
             cardShell("Start the bridge") {
+                para("Install the bridge from this project's GitHub release. This includes the version required by the app even when npm's package-name release is older.")
+                codeLine(AppState.bridgeInstallCommand)
                 if serverMode {
                     para("Start the bridge on the server's Tailscale address. Copy the pairing token printed in this terminal for the next step.")
-                    codeLine("GROK_REMOTE_HOST=\"$(tailscale ip -4)\" npx tethrx-bridge")
+                    codeLine("GROK_REMOTE_HOST=\"$(tailscale ip -4)\" tethrx-bridge")
                     note("Keep this SSH session open while pairing. To keep the bridge running after disconnecting, follow the Linux service setup in the server guide.")
                     Link("Linux server setup guide", destination: URL(string: "https://github.com/zwthys-cyber/TethrX/blob/main/docs/linux-server.md")!)
                         .font(Grok.sans(14)).foregroundStyle(Grok.text)
                 } else {
-                    para("One command downloads and starts the bridge on your computer. It prints a pairing token and keeps running. Leave it going.")
-                    codeLine("GROK_REMOTE_HOST=0.0.0.0 npx tethrx-bridge")
+                    para("Start the installed bridge. It prints a pairing token and keeps running. Leave it going.")
+                    codeLine("GROK_REMOTE_HOST=0.0.0.0 tethrx-bridge")
                     note("Leave that window open. This listens beyond the computer itself so the phone can connect on a network you trust. The pairing token is what protects it.")
                 }
                 nav("The bridge is running")

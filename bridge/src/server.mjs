@@ -40,6 +40,7 @@ import { loadApns } from "./apns.mjs";
 import { ScheduleStore, startScheduler } from "./schedules.mjs";
 import { UsageHistory } from "./usage-history.mjs";
 import { promptWithTitleGuidance } from "./titles.mjs";
+import { BRIDGE_INSTALL_COMMAND, fetchLatestBridgeVersion, isNewerBridgeVersion } from "./distribution.mjs";
 import { ensureTls } from "./tls.mjs";
 import * as awake from "./awake.mjs";
 import * as git from "./git.mjs";
@@ -101,21 +102,18 @@ const tlsPort = Number(process.env.GROK_REMOTE_TLS_PORT || config.port + 1);
 
 // Version + update check. Old bridges lingering on users' machines are the real
 // long-tail risk (0.1.0–0.1.8 had a token-disclosure bug), so the bridge checks
-// npm at most daily and /api/health carries both numbers for the app to compare.
+// its GitHub distribution at most daily; /api/health carries both versions.
 const OWN_VERSION = (() => {
   try { return JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8")).version || ""; }
   catch { return ""; }
 })();
-let npmLatest = { version: null, at: 0 };
-function latestNpmVersion() {
-  if (Date.now() - npmLatest.at > 24 * 3600_000) {
-    npmLatest.at = Date.now();
-    fetch("https://registry.npmjs.org/tethrx-bridge/latest", { signal: AbortSignal.timeout(5000) })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d?.version) npmLatest.version = d.version; })
-      .catch(() => { /* offline is fine */ });
+let bridgeLatest = { version: null, at: 0 };
+function latestBridgeVersion() {
+  if (Date.now() - bridgeLatest.at > 24 * 3600_000) {
+    bridgeLatest.at = Date.now();
+    fetchLatestBridgeVersion().then((version) => { if (version) bridgeLatest.version = version; });
   }
-  return npmLatest.version;   // may be null until the first fetch lands
+  return bridgeLatest.version;   // may be null until the first fetch lands
 }
 
 // Attached images land here; grok views them with its own (vision-capable) read
@@ -247,8 +245,8 @@ if (D.loopbackOnly) {
     '<div class="card warn">' +
     '<div class="eyebrow">One more step</div>' +
     '<p style="margin:10px 0 4px;line-height:1.5">This bridge is only listening on this computer, so your phone cannot reach it yet. Stop it with Ctrl+C and start it again like this:</p>' +
-    '<div class="tokrow"><code>GROK_REMOTE_HOST=0.0.0.0 npx tethrx-bridge</code>' +
-    '<button onclick="navigator.clipboard.writeText(\\'GROK_REMOTE_HOST=0.0.0.0 npx tethrx-bridge\\')">Copy</button></div>' +
+    '<div class="tokrow"><code>GROK_REMOTE_HOST=0.0.0.0 tethrx-bridge</code>' +
+    '<button onclick="navigator.clipboard.writeText(\\'GROK_REMOTE_HOST=0.0.0.0 tethrx-bridge\\')">Copy</button></div>' +
     '<p class="dim" style="margin:12px 0 0;font-size:12px">Then reload this page and the QR codes will appear. Only do this on a network you trust: the token is what protects the bridge.</p>' +
     '</div>';
 } else if (!D.addrs.length) {
@@ -1131,7 +1129,7 @@ async function handle(req, res) {
       grokLatest: grokUpdate.latest || null,
       grokUpdateAvailable: grokUpdate.available,
       version: OWN_VERSION,
-      latestVersion: latestNpmVersion(),
+      latestVersion: latestBridgeVersion(),
       // Advertising this lets an app paired over plain HTTP upgrade itself to
       // pinned HTTPS on its next connect (the QR remains the out-of-band root
       // of trust for first-time pairing).
@@ -1952,9 +1950,9 @@ server.listen(config.port, listenHost, async () => {
     console.log(`  ├─ https       https://${config.host}:${tlsPort}  (self-signed, pinned by the app)`);
     console.log(`  ├─ cert sha256 ${tls.fingerprint.slice(0, 16)}…  (full print in the pairing QR)`);
   }
-  const latest = latestNpmVersion();
-  if (latest && latest !== OWN_VERSION) {
-    console.log(`  ├─ UPDATE      v${latest} is out (you run v${OWN_VERSION}): npm i -g tethrx-bridge`);
+  const latest = latestBridgeVersion();
+  if (isNewerBridgeVersion(latest, OWN_VERSION)) {
+    console.log(`  ├─ UPDATE      v${latest} is out (you run v${OWN_VERSION}): ${BRIDGE_INSTALL_COMMAND}`);
   }
   console.log(`  ├─ grok        ${version || "NOT FOUND — check GROK_BIN"}  (${config.grokBin})`);
   console.log(`  ├─ transport   ${config.transport}${config.transport === "acp" ? ` (approve/reject: ${grokHome ? "on" : "off"})` : ""}`);

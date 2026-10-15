@@ -39,12 +39,25 @@ final class ChatViewModel: ObservableObject {
     }
 
     let client: BridgeClient
-    let session: SessionInfo
+    @Published private(set) var session: SessionInfo
     /// Demo mode: canned transcript, scripted replies, zero networking.
     let isDemo: Bool
 
     private let liveActivity = LiveActivityManager()
     var sessionName: String { session.displayName }
+
+    func updateSessionTitle(_ title: String) {
+        guard !title.isEmpty, session.title != title else { return }
+        session.title = title
+    }
+
+    private func refreshSessionTitle() async {
+        guard !isDemo, let updated = try? await client.sessionInfo(session.id) else { return }
+        // Read the canonical name: old bridges may stream an automatic title even
+        // when the user has already chosen a manual name. Never replay that over it.
+        updateSessionTitle(updated.title)
+        AppState.shared.updateSessionTitle(session.id, title: updated.title)
+    }
 
     private var streamTask: Task<Void, Never>?
     /// Set by stop(), so a watchdog that was already sleeping cannot revive the stream.
@@ -168,6 +181,7 @@ final class ChatViewModel: ObservableObject {
         // moment the composer opens — the live list (an SSE "commands" event once
         // grok's process is up) replaces it.
         Task { @MainActor in
+            await refreshSessionTitle()
             if commands.isEmpty, let seed = try? await client.commands(sessionId: session.id), !seed.isEmpty {
                 if commands.isEmpty { commands = seed }
             }
@@ -482,6 +496,11 @@ final class ChatViewModel: ObservableObject {
         flushStream()
 
         switch kind {
+        case "session_title":
+            if !isReplay {
+                Task { await refreshSessionTitle() }
+            }
+
         case "turn_start":
             assistantIndex = nil
             closeThought(at: eventAt)
