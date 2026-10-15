@@ -80,7 +80,7 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")" = "$ESIGN_BUNDLE_ID"
           test "$(/usr/libexec/PlistBuddy -c 'Print :TethrXStandalone' "$APP/Info.plist")" = "true"
           test "$(/usr/libexec/PlistBuddy -c 'Print :NSSupportsLiveActivities' "$APP/Info.plist")" = "false"
-          lipo -verify_arch arm64 "$APP/GrokRemote"
+          lipo "$APP/GrokRemote" -verify_arch arm64
           # 全能签 replaces the signature. Leave no ldid or ad-hoc signature,
           # and no extension bundles a one-app certificate cannot cover.
           rm -rf "$APP/PlugIns" "$APP/Watch" "$APP/_CodeSignature"
