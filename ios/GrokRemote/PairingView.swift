@@ -425,7 +425,7 @@ struct PairingView: View {
 }
 
 /// A monospaced command row with a copy button that flips to a checkmark on tap.
-private struct CopyableCode: View {
+struct CopyableCode: View {
     let text: String
     @State private var copied = false
 
