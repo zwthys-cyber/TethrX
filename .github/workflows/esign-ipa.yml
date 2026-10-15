@@ -103,10 +103,10 @@ jobs:
           cp docs/iphone17pm-ios26.6.md /tmp/esign-notes.md
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" TethrX-iPhone17ProMax-iOS26.6-esign.ipa --clobber
-            gh release edit "$TAG" --notes-file /tmp/esign-notes.md --title "TethrX 1.1.5 for iPhone 17 Pro Max / iOS 26.6 (全能签)" --prerelease
+            gh release edit "$TAG" --notes-file /tmp/esign-notes.md --title "TethrX 1.1.6 for iPhone 17 Pro Max / iOS 26.6 (全能签)" --prerelease
           else
             gh release create "$TAG" TethrX-iPhone17ProMax-iOS26.6-esign.ipa \
-              --title "TethrX 1.1.5 for iPhone 17 Pro Max / iOS 26.6 (全能签)" \
+              --title "TethrX 1.1.6 for iPhone 17 Pro Max / iOS 26.6 (全能签)" \
               --notes-file /tmp/esign-notes.md \
               --prerelease \
               --latest=false

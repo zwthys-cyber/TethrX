@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.6 (56) — 2026-10-15
+
+### Changed
+
+- The pairing step that shows `http://localhost:4180/pair` now says to type that address on the computer. Opening it on the phone cannot work.
+- The bridge start command listens on the network (`GROK_REMOTE_HOST=0.0.0.0`) so the pairing page can show a QR code the phone is able to reach.
+
 ## Sideload
 
 - GitHub Actions workflow **ESign IPA** builds `TethrX-iPhone17ProMax-iOS26.6-esign.ipa` for iPhone 17 Pro Max / iOS 26.6. 全能签 signs that unsigned IPA, then installs it. Bundle id `nsk-164.v-team.cn`, UDID `00008150-0015748602A3C01C`. Steps are in [docs/iphone17pm-ios26.6.md](docs/iphone17pm-ios26.6.md). The Watch app, widget, and share extension are left out. TrollStore packages stay on the iOS 17 release.

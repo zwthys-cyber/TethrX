@@ -18,7 +18,7 @@ struct AddComputerSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("On the other computer, start the bridge and open its pairing page, then scan the code below.")
+                    Text("On that computer's browser, type this address, then scan the code it shows. It will not open on this phone.")
                         .font(Grok.sans(15)).foregroundStyle(Grok.textDim).lineSpacing(4)
                         .fixedSize(horizontal: false, vertical: true)
 

@@ -37,7 +37,7 @@ struct ScanSheet: View {
                 }
                 Spacer()
                 if status == .authorized {
-                    Text("open  localhost:4180/pair  on your computer\nand point the camera at a code")
+                    Text("On the computer, type localhost:4180/pair\ninto its browser, then point at a code")
                         .font(Grok.sans(16)).foregroundStyle(Grok.text).multilineTextAlignment(.center).lineSpacing(3)
                         .padding(.horizontal, 16).padding(.vertical, 12)
                         .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: Grok.R.small, style: .continuous))

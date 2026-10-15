@@ -112,8 +112,8 @@ struct PairingView: View {
         case .run:
             cardShell("Start the bridge") {
                 para("One command downloads and starts the bridge on your computer. It prints a pairing token and keeps running. Leave it going.")
-                codeLine("npx tethrx-bridge")
-                note("Want it always-on? Install once with  npm i -g tethrx-bridge  then run  tethrx-bridge.")
+                codeLine("GROK_REMOTE_HOST=0.0.0.0 npx tethrx-bridge")
+                note("Leave that window open. This listens beyond the computer itself so the phone can connect on a network you trust. The pairing token is what protects it.")
                 nav("The bridge is running")
             }
         case .choose:
@@ -136,10 +136,10 @@ struct PairingView: View {
                 nav("Signed in with the same account")
             }
         case .page:
-            cardShell("Open the pairing page") {
-                para("On your computer, type this address into the browser's address bar:")
+            cardShell("On the computer, open this page") {
+                para("Type this into the browser on the computer that is running the bridge. Do not open it on this phone. localhost means that computer, and the page refuses every other device.")
                 codeLine("http://localhost:4180/pair")
-                note("Type it yourself. For your security the page refuses to open from a clicked link. It shows QR codes for Wi-Fi and Tailscale plus your token, and only works on the computer running the bridge.")
+                note("Type it in the address bar yourself. A tap, or pasting it into this phone, will not open it. When the QR codes are on the computer screen, continue. If the page says the phone cannot reach the bridge, the bridge was started without GROK_REMOTE_HOST=0.0.0.0.")
                 nav("I see the QR codes")
             }
         case .scan:
