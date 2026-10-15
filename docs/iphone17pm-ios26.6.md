@@ -1,15 +1,12 @@
 # 在 iPhone 17 Pro Max / iOS 26.6 上安装
 
-巨魔（TrollStore）不能在 iOS 26 上安装。这台手机用已签名的 IPA。
+巨魔（TrollStore）不能在 iOS 26 上安装。这台手机用全能签：先签名，再安装。全能签没有直接安装。
 
 下载：[iPhone 17 Pro Max / iOS 26.6 发布页](https://github.com/zwthys-cyber/TethrX/releases/tag/iphone17pm-ios26.6)
 
-| 文件 | 用途 |
-|---|---|
-| `TethrX-iPhone17ProMax-iOS26.6-signed.ipa` | 安装这个。已经用本机证书签好 |
-| `TethrX-iPhone17ProMax-iOS26.6-esign.ipa` | 未签名。只有要重新签名时才用。GitHub Actions 用 Xcode 26.6 编译 |
+用未签名的 `TethrX-iPhone17ProMax-iOS26.6-esign.ipa`。GitHub Actions 用 Xcode 26.6 编译。`TethrX-iPhone17ProMax-iOS26.6-signed.ipa` 只是同一份包的签名结果，全能签仍会再签一次，不必用它。
 
-已签名包只属于下面这一台设备：
+证书只属于下面这一台设备：
 
 | 项目 | 值 |
 |---|---|
@@ -20,8 +17,14 @@
 | 团队 | `YQTF39XU3L` |
 | 证书 | iPhone Distribution，到 2027-10-06 |
 | 描述文件 | 到 2027-10-15。这是开发描述文件 |
+| p12 密码 | 证书包里的 `密码.txt` |
 
-用全能签打开已签名的 IPA，直接安装。如果全能签要求重新签名，使用同一份 p12 和同一份描述文件，Bundle ID 保持 `nsk-164.v-team.cn`。
+在全能签里按这个顺序做：
+
+1. 导入 p12 和同包里的 `.mobileprovision`。密码用 `密码.txt` 里的那一个。
+2. 导入 `TethrX-iPhone17ProMax-iOS26.6-esign.ipa`。
+3. 签名。Bundle ID 填 `nsk-164.v-team.cn`。证书和描述文件选刚才导入的那一对。
+4. 签名完成后再安装。
 
 装好后打开「设置 → 隐私与安全性 → 开发者模式」，按提示重启并确认。开发描述文件需要这一步，App 才能打开。
 

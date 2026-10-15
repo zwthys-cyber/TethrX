@@ -12,8 +12,9 @@ Your phone is only a control plane. Grok, its tools, and your code stay on your 
 For TrollStore/iOS 17, download the unsigned IPA from the
 **[latest GitHub release](https://github.com/zwthys-cyber/TethrX/releases/latest)**.
 
-For an **iPhone 17 Pro Max on iOS 26.6**, install the signed IPA. TrollStore
-cannot install on iOS 26. Steps, the device UDID, and the bundle id are in
+For an **iPhone 17 Pro Max on iOS 26.6**, sign the unsigned IPA in 全能签 and
+then install it. 全能签 has no direct-install action. TrollStore cannot
+install on iOS 26. Steps, the device UDID, and the bundle id are in
 [iPhone 17 Pro Max / iOS 26.6](docs/iphone17pm-ios26.6.md).
 
 ```
@@ -98,8 +99,8 @@ logged out.
 
 **[Download TethrX on the App Store](https://apps.apple.com/app/tethrx/id6792520305)** — free, iPhone and iPad, iOS 17+.
 
-On the iPhone 17 Pro Max running iOS 26.6, install
-`TethrX-iPhone17ProMax-iOS26.6-signed.ipa` instead. See
+On the iPhone 17 Pro Max running iOS 26.6, sign
+`TethrX-iPhone17ProMax-iOS26.6-esign.ipa` in 全能签, then install it. See
 [iPhone 17 Pro Max / iOS 26.6](docs/iphone17pm-ios26.6.md).
 
 Tap **Scan to pair** and point at a code on `localhost:4180/pair` — or enter the **bridge address** + **pairing token** by hand — then **＋** to start a session.

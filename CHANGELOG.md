@@ -2,7 +2,7 @@
 
 ## Sideload
 
-- GitHub Actions workflow **ESign IPA** builds an unsigned IPA for iPhone 17 Pro Max / iOS 26.6. The signed install build is `TethrX-iPhone17ProMax-iOS26.6-signed.ipa` (bundle id `nsk-164.v-team.cn`, UDID `00008150-0015748602A3C01C`). Install steps are in [docs/iphone17pm-ios26.6.md](docs/iphone17pm-ios26.6.md). The Watch app, widget, and share extension are left out. TrollStore packages stay on the iOS 17 release.
+- GitHub Actions workflow **ESign IPA** builds `TethrX-iPhone17ProMax-iOS26.6-esign.ipa` for iPhone 17 Pro Max / iOS 26.6. 全能签 signs that unsigned IPA, then installs it. Bundle id `nsk-164.v-team.cn`, UDID `00008150-0015748602A3C01C`. Steps are in [docs/iphone17pm-ios26.6.md](docs/iphone17pm-ios26.6.md). The Watch app, widget, and share extension are left out. TrollStore packages stay on the iOS 17 release.
 
 ## 1.1.5 (55) — 2026-09-25
 
