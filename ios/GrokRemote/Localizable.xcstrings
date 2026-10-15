@@ -1,6 +1,490 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Connect a computer or server": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接电脑或服务器"
+          }
+        }
+      }
+    },
+    "Write and keep your tasks here. Connect a computer or Linux server to run them with Grok Build, including over cellular with Tailscale.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在这里写下并保存任务。连接电脑或 Linux 服务器后，让 Grok Build 执行任务；通过 Tailscale，使用蜂窝网络也能连接。"
+          }
+        }
+      }
+    },
+    "Use an SSH app on this phone to set up your Linux server. Tailscale connects the phone to it over Wi-Fi or cellular. No personal computer is needed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用这台手机上的 SSH 应用配置 Linux 服务器。通过 Tailscale，Wi-Fi 和蜂窝网络都能连接，不需要个人电脑。"
+          }
+        }
+      }
+    },
+    "Choose a computer or a Linux server. Already running a bridge? Enter its address and pairing token to connect directly.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择电脑或 Linux 服务器。如果桥接服务已经运行，可直接填写地址和配对令牌连接。"
+          }
+        }
+      }
+    },
+    "My bridge is already running": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "我的桥接服务已在运行"
+          }
+        }
+      }
+    },
+    "Where will Grok run?": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok 在哪里运行？"
+          }
+        }
+      }
+    },
+    "Linux server": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Linux 服务器"
+          }
+        }
+      }
+    },
+    "Set up over SSH from your phone; connect over cellular with Tailscale": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手机通过 SSH 配置，使用 Tailscale 在蜂窝网络下连接"
+          }
+        }
+      }
+    },
+    "Personal computer": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "个人电脑"
+          }
+        }
+      }
+    },
+    "Mac or another computer with a browser": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 或其他有浏览器的电脑"
+          }
+        }
+      }
+    },
+    "Open your server's SSH terminal": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开服务器的 SSH 终端"
+          }
+        }
+      }
+    },
+    "Use your hosting provider's web terminal or an SSH app on this iPhone. Run the following setup commands on the Linux server, not on the phone itself.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用云服务商的网页终端，或这台 iPhone 上的 SSH 应用。以下配置命令都在 Linux 服务器的终端执行。"
+          }
+        }
+      }
+    },
+    "Use the same Linux account for Grok Build and the bridge, so they share the same sign-in and files.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok Build 和桥接服务要使用同一个 Linux 账户，以便读取相同的登录信息和文件。"
+          }
+        }
+      }
+    },
+    "The server terminal is open": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已打开服务器终端"
+          }
+        }
+      }
+    },
+    "Set up Grok Build on your server": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在服务器上安装 Grok Build"
+          }
+        }
+      }
+    },
+    "Install Grok Build in the server's SSH terminal. Your code and tasks will run on that server.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在服务器的 SSH 终端安装 Grok Build。代码和任务都在该服务器上运行。"
+          }
+        }
+      }
+    },
+    "Use device-code sign-in on the server. Open the URL it prints in Safari on this iPhone, enter the code and finish signing in.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在服务器上使用设备码登录。用这台 iPhone 的 Safari 打开终端显示的网址，输入设备码完成登录。"
+          }
+        }
+      }
+    },
+    "The server does not need a browser. Keep its terminal open until sign-in finishes.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器不需要浏览器。登录完成前保持终端打开。"
+          }
+        }
+      }
+    },
+    "Install Node.js 20 or newer on the Linux server using the Linux instructions at nodejs.org. Check the version in the same SSH terminal.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按照 nodejs.org 的 Linux 安装说明，在服务器上安装 Node.js 20 或更新版本，然后在同一 SSH 终端查看版本。"
+          }
+        }
+      }
+    },
+    "Start the bridge on the server's Tailscale address. Copy the pairing token printed in this terminal for the next step.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "让桥接服务监听服务器的 Tailscale 地址。复制终端显示的配对令牌，下一步会用到。"
+          }
+        }
+      }
+    },
+    "Keep this SSH session open while pairing. To keep the bridge running after disconnecting, follow the Linux service setup in the server guide.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配对时保持 SSH 会话打开。要在断开 SSH 后继续运行，请按照服务器指南配置 Linux 后台服务。"
+          }
+        }
+      }
+    },
+    "Linux server setup guide": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Linux 服务器部署指南"
+          }
+        }
+      }
+    },
+    "I use a Linux server": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "我使用 Linux 服务器"
+          }
+        }
+      }
+    },
+    "Use SSH setup instead of a desktop app": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通过 SSH 配置服务器"
+          }
+        }
+      }
+    },
+    "Install Tailscale on the server": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在服务器上安装 Tailscale"
+          }
+        }
+      }
+    },
+    "Run these commands in the Linux server's terminal. Open the sign-in URL it prints in Safari on this iPhone and authorize the server.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Linux 服务器终端执行这些命令。用这台 iPhone 的 Safari 打开显示的登录网址，授权服务器加入网络。"
+          }
+        }
+      }
+    },
+    "Save the 100.x.y.z address. The bridge will listen only on this private network; no public port forwarding is needed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记下 100.x.y.z 地址。桥接服务只监听这个私有网络，不需要公网端口转发。"
+          }
+        }
+      }
+    },
+    "The server is connected to Tailscale": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器已连接 Tailscale"
+          }
+        }
+      }
+    },
+    "Install Tailscale from the App Store on this iPhone. Sign in to the same Tailscale network as the server and enable the VPN connection.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在这台 iPhone 的 App Store 安装 Tailscale，登录服务器所在的同一 Tailscale 网络，并开启 VPN 连接。"
+          }
+        }
+      }
+    },
+    "Keep Tailscale connected on this phone when using Wi-Fi or cellular. Check that the server is online in its device list.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 Wi-Fi 或蜂窝网络时都要保持手机的 Tailscale 连接。确认设备列表中的服务器在线。"
+          }
+        }
+      }
+    },
+    "Copy the server address and pairing token": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制服务器地址和配对令牌"
+          }
+        }
+      }
+    },
+    "Use the server's Tailscale IPv4 address with port 4180, and the pairing token printed when the bridge started. Enter both on the next screen.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用服务器的 Tailscale IPv4 地址和 4180 端口，以及桥接服务启动时显示的配对令牌。在下一屏填写这两项。"
+          }
+        }
+      }
+    },
+    "If the bridge runs as a service, read its token from the server account's configuration in your private SSH terminal:": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "如果桥接服务已作为后台服务运行，可在自己的 SSH 终端读取该服务器账户配置中的令牌："
+          }
+        }
+      }
+    },
+    "No QR code or server browser is required. Do not open localhost:4180 on this iPhone or share the pairing token.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不需要二维码，也不需要服务器浏览器。不要在 iPhone 上打开 localhost:4180，也不要分享配对令牌。"
+          }
+        }
+      }
+    },
+    "I have the server address and token": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已获取服务器地址和令牌"
+          }
+        }
+      }
+    },
+    "Connect to your server": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接你的服务器"
+          }
+        }
+      }
+    },
+    "Paste the server's Tailscale address and pairing token below. Keep Tailscale connected on this iPhone, including when using cellular.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在下方粘贴服务器的 Tailscale 地址和配对令牌。使用蜂窝网络时，也要保持 iPhone 的 Tailscale 连接。"
+          }
+        }
+      }
+    },
+    "from the server terminal": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从服务器终端复制"
+          }
+        }
+      }
+    },
+    "On a computer with a browser, open this address to show a pairing QR code. For a Linux server, use the address and token fields below instead.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有浏览器的电脑可打开此地址显示配对二维码。Linux 服务器请直接使用下方的地址和令牌输入框。"
+          }
+        }
+      }
+    },
+    "Using a Linux server? No browser or QR code is needed. Keep Tailscale connected on this phone, then enter the server's 100.x.y.z:4180 address and the token from its terminal below.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 Linux 服务器时，无需浏览器或二维码。保持手机的 Tailscale 连接，在下方填写服务器的 100.x.y.z:4180 地址及从终端复制的令牌。"
+          }
+        }
+      }
+    },
+    "from the server terminal or pairing page": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从服务器终端或配对页面复制"
+          }
+        }
+      }
+    },
+    "Add computer or server": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加电脑或服务器"
+          }
+        }
+      }
+    },
+    "Adding a computer or server switches to it. Your other connections stay paired, and you can switch between them any time.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加后会切换到这台电脑或服务器。其他连接仍保留配对，可随时切换。"
+          }
+        }
+      }
+    },
+    "This build does not support Apple push notifications. Configure ntfy on your bridge to receive alerts in the ntfy app.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此版本不支持 Apple 推送通知。可在桥接服务上配置 ntfy，并在 ntfy 应用中接收提醒。"
+          }
+        }
+      }
+    },
     "" : {
       "shouldTranslate" : false
     },

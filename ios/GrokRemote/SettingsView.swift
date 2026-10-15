@@ -237,7 +237,9 @@ struct SettingsView: View {
                 }
                 indexGroup("This phone") {
                     indexRow(.notifications, "bell", value: String(loc: push.enabled ? "On" : "Off"))
-                    indexRow(.watch, "applewatch", value: watchShortLabel)
+                    if !SharedConfig.isStandalone {
+                        indexRow(.watch, "applewatch", value: watchShortLabel)
+                    }
                     indexRow(.language, "globe", value: language.currentLabel)
                     indexRow(.security, "lock", value: String(loc: lock.enabled ? "On" : "Off"))
                 }
@@ -933,11 +935,16 @@ struct SettingsView: View {
 
     private var notifications: some View {
         VStack(alignment: .leading, spacing: 12) {
-            toggleRow("Push notifications",
-                      "Get alerted when Grok finishes a turn or needs approval, even with the app closed",
-                      Binding(get: { push.enabled }, set: { $0 ? push.enable() : push.disable() }))
-            Text("Requires an APNs key configured on your bridge. Delivered to this phone when it isn't actively watching a session.")
-                .font(Grok.sans(13)).foregroundStyle(Grok.textFaint)
+            if SharedConfig.isStandalone {
+                Text("This build does not support Apple push notifications. Configure ntfy on your bridge to receive alerts in the ntfy app.")
+                    .font(Grok.sans(13)).foregroundStyle(Grok.textFaint)
+            } else {
+                toggleRow("Push notifications",
+                          "Get alerted when Grok finishes a turn or needs approval, even with the app closed",
+                          Binding(get: { push.enabled }, set: { $0 ? push.enable() : push.disable() }))
+                Text("Requires an APNs key configured on your bridge. Delivered to this phone when it isn't actively watching a session.")
+                    .font(Grok.sans(13)).foregroundStyle(Grok.textFaint)
+            }
         }
     }
 

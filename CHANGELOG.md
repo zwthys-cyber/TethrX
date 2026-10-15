@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.7 (57) — 2026-10-15
+
+### Added
+
+- A Linux server pairing path: SSH setup from the phone, Grok device-code sign-in, Tailscale on the server and iPhone, then address/token pairing. No server browser or QR code is required. Includes Simplified Chinese instructions.
+- A direct-connect shortcut for an existing bridge and a [Linux server deployment guide](docs/linux-server.md).
+
+### Fixed
+
+- The standalone ESign build now uses the selected Bundle ID and omits the original app's shared keychain, App Group and APNs entitlements. Runtime features match the single-app package.
+- Shared keychain access resolves the signing prefix from build settings instead of hardcoding the original author's team.
+- Updating a pairing token preserves its previous value when a keychain update fails.
+- GitHub Actions checks the ESign preparation, embedded targets, Bundle ID and arm64 binary before packaging. Validation and compilation run on GitHub.
+
 ## 1.1.6 (56) — 2026-10-15
 
 ### Changed

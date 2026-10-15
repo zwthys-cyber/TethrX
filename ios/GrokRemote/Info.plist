@@ -26,6 +26,8 @@
 	<false/>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
+	<key>TethrXSharedKeychainGroup</key>
+	<string>$(AppIdentifierPrefix)group.com.tethrx.app</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

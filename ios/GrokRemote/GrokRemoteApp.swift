@@ -87,6 +87,7 @@ struct TethrXApp: App {
     /// iOS launches the app briefly in the background for a push-started activity,
     /// which is what makes the update-token handoff possible at all.
     private func observeLiveActivities() {
+        guard !SharedConfig.isStandalone else { return }
         if #available(iOS 17.2, *) {
             Task {
                 for await tokenData in Activity<TethrXActivityAttributes>.pushToStartTokenUpdates {

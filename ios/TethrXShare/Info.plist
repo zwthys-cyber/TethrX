@@ -4,6 +4,8 @@
 <dict>
 	<key>CFBundleDisplayName</key>
 	<string>TethrX</string>
+	<key>TethrXSharedKeychainGroup</key>
+	<string>$(AppIdentifierPrefix)group.com.tethrx.app</string>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundleExecutable</key>

@@ -1,14 +1,8 @@
 import SwiftUI
 import UIKit
 
-/// Connecting a computer, as a precise branching wizard. Prerequisites (Grok
-/// Build, Node, the bridge) → start the bridge → choose Wi-Fi or Tailscale
-/// (which adds its own steps) → open the pairing page → scan the matching QR
-/// (or type it).
-///
-/// Pushed from the welcome screen rather than shown at launch: every step here
-/// is about software on the user's *computer*, so it must never be the first
-/// thing the app asks of someone who just opened it.
+/// Connect either a desktop computer or a headless Linux server. The server
+/// path uses SSH, device-code login and manual pairing, with no desktop browser.
 struct PairingView: View {
     @EnvironmentObject var app: AppState
     @StateObject private var discovery = BridgeDiscovery()
@@ -16,19 +10,23 @@ struct PairingView: View {
     @State private var showScanner = false
     @State private var idx = 0
     @State private var path: NetPath = .undecided
+    @State private var serverMode = false
 
     private enum Field { case address, token }
     private enum NetPath { case undecided, wifi, tailscale }
-    private enum WStep { case grok, signin, node, run, choose, tsMac, tsPhone, page, scan }
+    private enum WStep { case host, serverAccess, grok, signin, node, run, choose, tsMac, tsServer, tsPhone, serverToken, page, scan }
 
     /// The ordered steps — the tail depends on the chosen network path.
     private var steps: [WStep] {
-        let base: [WStep] = [.grok, .signin, .node, .run, .choose]
+        if serverMode {
+            return [.host, .serverAccess, .grok, .signin, .node, .tsServer, .tsPhone, .run, .serverToken, .scan]
+        }
+        let base: [WStep] = [.host, .grok, .signin, .node, .run, .choose]
         let tail: [WStep] = path == .tailscale ? [.tsMac, .tsPhone, .page, .scan] : [.page, .scan]
         return base + tail
     }
     private var current: WStep { steps[max(0, min(idx, steps.count - 1))] }
-    private var firstTailIndex: Int { 5 }   // index right after `choose`
+    private var firstTailIndex: Int { 6 }   // desktop index right after `choose`
 
     var body: some View {
         ScrollView {
@@ -44,7 +42,7 @@ struct PairingView: View {
             .animation(.easeInOut(duration: 0.22), value: path)
         }
         .background(Grok.bg)
-        .navigationTitle("Connect a computer")
+        .navigationTitle("Connect a computer or server")
         .navigationBarTitleDisplayMode(.inline)
         .grokBar()
         .scrollDismissesKeyboard(.interactively)
@@ -54,16 +52,17 @@ struct PairingView: View {
         .onAppear {
             #if DEBUG
             let args = ProcessInfo.processInfo.arguments
+            if args.contains("-serverPath") { serverMode = true; path = .tailscale }
             if args.contains("-tsPath") { path = .tailscale }
             if let i = args.firstIndex(of: "-startStep"), i + 1 < args.count, let n = Int(args[i + 1]) {
                 idx = max(0, min(n, steps.count - 1))
             }
             #endif
-            // Always start at step 1. Returning users get the Reconnect shortcut below.
+            // Returning users can skip setup with the direct-connect shortcut.
         }
         .onChange(of: current) { _, step in
             // Browse only on the scan step, where an address is actually wanted.
-            if step == .scan { discovery.start() } else { discovery.stop() }
+            if step == .scan, !serverMode, path == .wifi { discovery.start() } else { discovery.stop() }
         }
         .onDisappear { discovery.stop() }
     }
@@ -72,9 +71,20 @@ struct PairingView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("These steps all happen on the computer you want to control. Nothing extra is needed on this phone.")
+            Text(serverMode
+                 ? LocalizedStringKey("Use an SSH app on this phone to set up your Linux server. Tailscale connects the phone to it over Wi-Fi or cellular. No personal computer is needed.")
+                 : LocalizedStringKey("Choose a computer or a Linux server. Already running a bridge? Enter its address and pairing token to connect directly."))
                 .font(Grok.sans(14)).foregroundStyle(Grok.textDim).lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
+            if current != .scan {
+                Button("My bridge is already running") {
+                    focus = nil
+                    if serverMode { path = .tailscale }
+                    idx = steps.count - 1
+                }
+                .font(Grok.sans(14)).foregroundStyle(Grok.textDim)
+                .frame(minHeight: 44)
+            }
             HStack(spacing: 5) {
                 ForEach(0..<steps.count, id: \.self) { i in
                     Capsule().fill(i <= idx ? Grok.accent : Grok.hairlineStrong)
@@ -88,32 +98,69 @@ struct PairingView: View {
 
     @ViewBuilder private var card: some View {
         switch current {
+        case .host:
+            cardShell("Where will Grok run?") {
+                choice("Linux server", "Set up over SSH from your phone; connect over cellular with Tailscale") {
+                    serverMode = true
+                    path = .tailscale
+                    idx = 1
+                }
+                choice("Personal computer", "Mac or another computer with a browser") {
+                    serverMode = false
+                    path = .undecided
+                    idx = 1
+                }
+            }
+        case .serverAccess:
+            cardShell("Open your server's SSH terminal") {
+                para("Use your hosting provider's web terminal or an SSH app on this iPhone. Run the following setup commands on the Linux server, not on the phone itself.")
+                note("Use the same Linux account for Grok Build and the bridge, so they share the same sign-in and files.")
+                nav("The server terminal is open")
+            }
         case .grok:
-            cardShell("Set up Grok Build on your computer") {
-                para("TethrX drives Grok Build, xAI's terminal coding agent, on a computer you own. Install it there with one command:")
+            cardShell(serverMode ? "Set up Grok Build on your server" : "Set up Grok Build on your computer") {
+                para(serverMode
+                     ? "Install Grok Build in the server's SSH terminal. Your code and tasks will run on that server."
+                     : "TethrX drives Grok Build, xAI's terminal coding agent, on a computer you own. Install it there with one command:")
                 codeLine("curl -fsSL https://x.ai/cli/install.sh | bash")
                 note("Already installed? Check with  grok --version  and skip ahead.")
                 nav("Grok Build is installed")
             }
         case .signin:
             cardShell("Sign in to Grok") {
-                para("Run Grok once on your computer. It opens your browser to sign in with your xAI account, then remembers you.")
-                codeLine("grok")
-                note("Sign-in trouble? Some privacy browsers (Brave, and others with strict shields) block the localhost redirect the login uses. Set Safari or Chrome as your default browser, run  grok login  to retry, then switch back. You're set when  grok --version  prints a version without complaints.")
+                if serverMode {
+                    para("Use device-code sign-in on the server. Open the URL it prints in Safari on this iPhone, enter the code and finish signing in.")
+                    codeLine("grok login --device-auth")
+                    note("The server does not need a browser. Keep its terminal open until sign-in finishes.")
+                } else {
+                    para("Run Grok once on your computer. It opens your browser to sign in with your xAI account, then remembers you.")
+                    codeLine("grok")
+                    note("Sign-in trouble? Some privacy browsers (Brave, and others with strict shields) block the localhost redirect the login uses. Set Safari or Chrome as your default browser, run  grok login  to retry, then switch back. You're set when  grok --version  prints a version without complaints.")
+                }
                 nav("I'm signed in")
             }
         case .node:
             cardShell("Install Node.js") {
-                para("The bridge runs on Node.js 20 or newer. Install it from nodejs.org if you don't already have it.")
+                para(serverMode
+                     ? "Install Node.js 20 or newer on the Linux server using the Linux instructions at nodejs.org. Check the version in the same SSH terminal."
+                     : "The bridge runs on Node.js 20 or newer. Install it from nodejs.org if you don't already have it.")
                 codeLine("node --version")
                 note("Should print v20 or higher.")
                 nav("Node is installed")
             }
         case .run:
             cardShell("Start the bridge") {
-                para("One command downloads and starts the bridge on your computer. It prints a pairing token and keeps running. Leave it going.")
-                codeLine("GROK_REMOTE_HOST=0.0.0.0 npx tethrx-bridge")
-                note("Leave that window open. This listens beyond the computer itself so the phone can connect on a network you trust. The pairing token is what protects it.")
+                if serverMode {
+                    para("Start the bridge on the server's Tailscale address. Copy the pairing token printed in this terminal for the next step.")
+                    codeLine("GROK_REMOTE_HOST=\"$(tailscale ip -4)\" npx tethrx-bridge")
+                    note("Keep this SSH session open while pairing. To keep the bridge running after disconnecting, follow the Linux service setup in the server guide.")
+                    Link("Linux server setup guide", destination: URL(string: "https://github.com/zwthys-cyber/TethrX/blob/main/docs/linux-server.md")!)
+                        .font(Grok.sans(14)).foregroundStyle(Grok.text)
+                } else {
+                    para("One command downloads and starts the bridge on your computer. It prints a pairing token and keeps running. Leave it going.")
+                    codeLine("GROK_REMOTE_HOST=0.0.0.0 npx tethrx-bridge")
+                    note("Leave that window open. This listens beyond the computer itself so the phone can connect on a network you trust. The pairing token is what protects it.")
+                }
                 nav("The bridge is running")
             }
         case .choose:
@@ -127,13 +174,40 @@ struct PairingView: View {
             cardShell("Install Tailscale on your computer") {
                 para("Tailscale is a free private network that links this phone to your computer from anywhere. Install it on your computer, then sign in to create a free account. You can use Google, Apple, GitHub, or email.")
                 note("Get it from the Mac App Store or tailscale.com/download. Once you're signed in, a menu-bar icon shows it's connected.")
+                choice("I use a Linux server", "Use SSH setup instead of a desktop app") {
+                    serverMode = true
+                    path = .tailscale
+                    idx = 1
+                }
                 nav("Installed and signed in")
+            }
+        case .tsServer:
+            cardShell("Install Tailscale on the server") {
+                para("Run these commands in the Linux server's terminal. Open the sign-in URL it prints in Safari on this iPhone and authorize the server.")
+                codeLine("curl -fsSL https://tailscale.com/install.sh | sh")
+                codeLine("sudo tailscale up")
+                codeLine("tailscale ip -4")
+                note("Save the 100.x.y.z address. The bridge will listen only on this private network; no public port forwarding is needed.")
+                nav("The server is connected to Tailscale")
             }
         case .tsPhone:
             cardShell("Install Tailscale on this phone") {
-                para("Now install Tailscale from the App Store on this phone and sign in with the same account you just used on your computer. Using the same account on both is what links the two devices.")
-                note("Open the Tailscale app and check that both your computer and this phone show up in the list and appear connected.")
+                para(serverMode
+                     ? "Install Tailscale from the App Store on this iPhone. Sign in to the same Tailscale network as the server and enable the VPN connection."
+                     : "Now install Tailscale from the App Store on this phone and sign in with the same account you just used on your computer. Using the same account on both is what links the two devices.")
+                note(serverMode
+                     ? "Keep Tailscale connected on this phone when using Wi-Fi or cellular. Check that the server is online in its device list."
+                     : "Open the Tailscale app and check that both your computer and this phone show up in the list and appear connected.")
                 nav("Signed in with the same account")
+            }
+        case .serverToken:
+            cardShell("Copy the server address and pairing token") {
+                para("Use the server's Tailscale IPv4 address with port 4180, and the pairing token printed when the bridge started. Enter both on the next screen.")
+                codeLine("http://100.x.y.z:4180")
+                note("If the bridge runs as a service, read its token from the server account's configuration in your private SSH terminal:")
+                codeLine("node -p 'JSON.parse(require(\"fs\").readFileSync(require(\"os\").homedir()+\"/.grok-remote/config.json\",\"utf8\")).token'")
+                note("No QR code or server browser is required. Do not open localhost:4180 on this iPhone or share the pairing token.")
+                nav("I have the server address and token")
             }
         case .page:
             cardShell("On the computer, open this page") {
@@ -143,18 +217,22 @@ struct PairingView: View {
                 nav("I see the QR codes")
             }
         case .scan:
-            cardShell(path == .tailscale ? "Scan the Tailscale code" : "Scan the Wi-Fi code") {
-                para(path == .tailscale
-                     ? "On the pairing page, tap Scan to pair and aim at the code labelled TAILSCALE."
-                     : "On the pairing page, tap Scan to pair and aim at the code labelled WI-FI / LAN.")
-                Button { focus = nil; showScanner = true } label: {
-                    Label("Scan to pair", systemImage: "qrcode.viewfinder")
+            cardShell(serverMode ? "Connect to your server" : (path == .tailscale ? "Scan the Tailscale code" : "Scan the Wi-Fi code")) {
+                if serverMode {
+                    para("Paste the server's Tailscale address and pairing token below. Keep Tailscale connected on this iPhone, including when using cellular.")
+                } else {
+                    para(path == .tailscale
+                         ? "On the pairing page, tap Scan to pair and aim at the code labelled TAILSCALE."
+                         : "On the pairing page, tap Scan to pair and aim at the code labelled WI-FI / LAN.")
+                    Button { focus = nil; showScanner = true } label: {
+                        Label("Scan to pair", systemImage: "qrcode.viewfinder")
+                    }
+                    .buttonStyle(PillButton(kind: .prominent))
                 }
-                .buttonStyle(PillButton(kind: .prominent))
 
                 // Bridges advertising themselves on this network — tap to fill the
                 // address, then only the token is left to enter.
-                if path == .wifi, !discovery.found.isEmpty {
+                if !serverMode, path == .wifi, !discovery.found.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         ListSectionLabel("Found nearby")
                         ForEach(discovery.found) { bridge in
@@ -186,17 +264,19 @@ struct PairingView: View {
                     .padding(.vertical, 2)
                 }
 
-                HStack(spacing: 12) {
-                    divider
-                    Text("or enter by hand").font(Grok.sans(14)).foregroundStyle(Grok.textFaint).fixedSize()
-                    divider
+                if !serverMode {
+                    HStack(spacing: 12) {
+                        divider
+                        Text("or enter by hand").font(Grok.sans(14)).foregroundStyle(Grok.textFaint).fixedSize()
+                        divider
+                    }
+                    .padding(.vertical, 2)
                 }
-                .padding(.vertical, 2)
 
                 field(label: "Bridge address", placeholder: path == .tailscale ? "100.x.y.z:4180" : "192.168.1.10:4180", text: $app.baseURLString, secure: false)
                     .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                     .focused($focus, equals: .address).submitLabel(.next).onSubmit { focus = .token }
-                field(label: "Pairing token", placeholder: "from the pairing page", text: $app.token, secure: true)
+                field(label: "Pairing token", placeholder: serverMode ? "from the server terminal" : "from the pairing page", text: $app.token, secure: true)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                     .focused($focus, equals: .token).submitLabel(.go).onSubmit { focus = nil; Task { await app.connect() } }
 
@@ -206,7 +286,9 @@ struct PairingView: View {
                         (app.connecting ? Text("Connecting…") : Text("Connect"))
                     }
                 }
-                .buttonStyle(PillButton(kind: .prominent)).disabled(app.connecting)
+                .buttonStyle(PillButton(kind: .prominent))
+                .disabled(app.connecting || app.baseURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                          || app.token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                 backButton
             }
@@ -267,7 +349,7 @@ struct PairingView: View {
         if idx > 0 { backButton }
     }
     private var backButton: some View {
-        Button { path = idx == firstTailIndex ? .undecided : path; idx = max(idx - 1, 0) } label: {
+        Button { path = !serverMode && idx == firstTailIndex ? .undecided : path; idx = max(idx - 1, 0) } label: {
             Label("back", systemImage: "chevron.left").font(Grok.sans(15))
                 // A bare label is one line of 15pt type tall, well under the 44pt
                 // a finger needs; the height lives in the label so the whole width

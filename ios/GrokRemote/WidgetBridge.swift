@@ -24,6 +24,7 @@ enum WidgetBridge {
     static let key = "tethrx.snapshot"
 
     static func publish(_ snapshot: TethrXSnapshot) {
+        guard !SharedConfig.isStandalone else { return }
         guard let defaults = UserDefaults(suiteName: suiteName),
               let data = try? JSONEncoder().encode(snapshot) else { return }
         defaults.set(data, forKey: key)

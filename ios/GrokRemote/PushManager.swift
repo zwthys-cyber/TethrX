@@ -10,7 +10,7 @@ import UIKit
 final class PushManager: NSObject, ObservableObject {
     static let shared = PushManager()
 
-    @Published var enabled = UserDefaults.standard.bool(forKey: "push.enabled")
+    @Published var enabled = !SharedConfig.isStandalone && UserDefaults.standard.bool(forKey: "push.enabled")
     private(set) var lastToken: String?
 
     /// Set by the app; called whenever a fresh device token arrives.
@@ -86,6 +86,7 @@ final class PushManager: NSObject, ObservableObject {
 
     /// Ask permission and register for remote notifications (user opted in).
     func enable() {
+        guard !SharedConfig.isStandalone else { return }
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
             Task { @MainActor in
                 self.enabled = granted

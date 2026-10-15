@@ -5,11 +5,18 @@ name: ESign IPA
 # profile contains that device. TrollStore cannot install on iOS 26.
 on:
   workflow_dispatch:
+    inputs:
+      bundle_id:
+        description: Bundle ID allowed by your signing profile
+        required: true
+        default: nsk-164.v-team.cn
+        type: string
   push:
     branches: [main]
     paths:
       - .github/workflows/esign-ipa.yml
       - ios/**
+      - docs/iphone17pm-ios26.6.md
 
 permissions:
   contents: write
@@ -19,6 +26,8 @@ jobs:
     name: unsigned iOS 26.6 IPA for 全能签
     runs-on: macos-26
     timeout-minutes: 45
+    env:
+      ESIGN_BUNDLE_ID: ${{ inputs.bundle_id || 'nsk-164.v-team.cn' }}
     steps:
       - uses: actions/checkout@v5
 
@@ -30,22 +39,13 @@ jobs:
       # A single personal certificate covers one bundle id. The watch app,
       # widget, and share extension each need their own id, so this package
       # keeps only the iPhone app. Pairing stays in the app's own keychain.
-      - name: Keep the iPhone app only
+      - name: Check ESign configuration
+        run: python3 -m unittest discover -s ios/tools -p 'test_*.py' -v
+
+      - name: Prepare standalone iPhone app
         run: |
-          python3 << 'PY'
-          from pathlib import Path
-          path = Path("ios/GrokRemote.xcodeproj/project.pbxproj")
-          text = path.read_text()
-          for line in (
-              "\t\t\t\tABCDEF0123456789ABCF0030 /* Embed Watch Content */,\n",
-              "\t\t\t\tABCDEF0123456789ABCF0041 /* PBXTargetDependency */,\n",
-              "\t\t\t\tE69633B7E40A946D3938A446 /* Embed Foundation Extensions */,\n",
-              "\t\t\t\t01312C879EC3DA4E268FE0E8 /* PBXTargetDependency */,\n",
-              "\t\t\t\tABCDEF0123456789ABCE0052 /* PBXTargetDependency */,\n",
-          ):
-              text = text.replace(line, "")
-          path.write_text(text)
-          PY
+          python3 ios/tools/prepare-esign.py --bundle-id "$ESIGN_BUNDLE_ID"
+          plutil -lint ios/GrokRemote.xcodeproj/project.pbxproj ios/GrokRemote/Info.plist
 
       - name: Build GrokRemote for iPhone
         run: |
@@ -61,6 +61,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
             DEVELOPMENT_TEAM="" \
             CODE_SIGN_STYLE=Manual \
             AD_HOC_CODE_SIGNING_ALLOWED=YES \
@@ -69,9 +70,17 @@ jobs:
       - name: Package unsigned IPA
         run: |
           set -euo pipefail
-          APP="$(find "$RUNNER_TEMP/DerivedData/Build/Products" -type d -name 'GrokRemote.app' | head -1)"
-          test -n "$APP"
+          APP="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/GrokRemote.app"
+          test -d "$APP"
           echo "App: $APP"
+          # Check the build before cleanup, so an accidental embedded target is
+          # caught instead of silently discarded after its code has been built.
+          test ! -d "$APP/PlugIns"
+          test ! -d "$APP/Watch"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")" = "$ESIGN_BUNDLE_ID"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :TethrXStandalone' "$APP/Info.plist")" = "true"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :NSSupportsLiveActivities' "$APP/Info.plist")" = "false"
+          lipo -verify_arch arm64 "$APP/GrokRemote"
           # 全能签 replaces the signature. Leave no ldid or ad-hoc signature,
           # and no extension bundles a one-app certificate cannot cover.
           rm -rf "$APP/PlugIns" "$APP/Watch" "$APP/_CodeSignature"
@@ -87,11 +96,14 @@ jobs:
           zip -r -y TethrX-iPhone17ProMax-iOS26.6-esign.ipa Payload
           ls -lh TethrX-iPhone17ProMax-iOS26.6-esign.ipa
           file Payload/TethrX.app/GrokRemote
+          shasum -a 256 TethrX-iPhone17ProMax-iOS26.6-esign.ipa > TethrX-iPhone17ProMax-iOS26.6-esign.ipa.sha256
 
       - uses: actions/upload-artifact@v6
         with:
           name: TethrX-iPhone17ProMax-iOS26.6-esign
-          path: TethrX-iPhone17ProMax-iOS26.6-esign.ipa
+          path: |
+            TethrX-iPhone17ProMax-iOS26.6-esign.ipa
+            TethrX-iPhone17ProMax-iOS26.6-esign.ipa.sha256
           if-no-files-found: error
 
       - name: Publish GitHub release
@@ -101,12 +113,14 @@ jobs:
           set -euo pipefail
           TAG="iphone17pm-ios26.6"
           cp docs/iphone17pm-ios26.6.md /tmp/esign-notes.md
+          VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Payload/TethrX.app/Info.plist)"
+          TITLE="TethrX $VERSION for iPhone 17 Pro Max / iOS 26.6 (全能签)"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" TethrX-iPhone17ProMax-iOS26.6-esign.ipa --clobber
-            gh release edit "$TAG" --notes-file /tmp/esign-notes.md --title "TethrX 1.1.6 for iPhone 17 Pro Max / iOS 26.6 (全能签)" --prerelease
+            gh release upload "$TAG" TethrX-iPhone17ProMax-iOS26.6-esign.ipa TethrX-iPhone17ProMax-iOS26.6-esign.ipa.sha256 --clobber
+            gh release edit "$TAG" --notes-file /tmp/esign-notes.md --title "$TITLE" --prerelease
           else
-            gh release create "$TAG" TethrX-iPhone17ProMax-iOS26.6-esign.ipa \
-              --title "TethrX 1.1.6 for iPhone 17 Pro Max / iOS 26.6 (全能签)" \
+            gh release create "$TAG" TethrX-iPhone17ProMax-iOS26.6-esign.ipa TethrX-iPhone17ProMax-iOS26.6-esign.ipa.sha256 \
+              --title "$TITLE" \
               --notes-file /tmp/esign-notes.md \
               --prerelease \
               --latest=false

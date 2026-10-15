@@ -59,7 +59,7 @@ struct WelcomeView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            Text("Write and keep the tasks you want run, right here. Connect your own computer whenever you want them carried out by Grok Build on it.")
+            Text("Write and keep your tasks here. Connect a computer or Linux server to run them with Grok Build, including over cellular with Tailscale.")
                 .font(Grok.sans(14)).foregroundStyle(Grok.textDim).lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -81,7 +81,7 @@ struct WelcomeView: View {
             Button { pairing = true } label: {
                 HStack(spacing: 9) {
                     Image(systemName: "desktopcomputer").font(.system(size: 14, weight: .medium))
-                    Text("Connect a computer")
+                    Text("Connect a computer or server")
                 }
             }
             .buttonStyle(PillButton(kind: .subtle))

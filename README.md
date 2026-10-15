@@ -14,7 +14,7 @@ For TrollStore/iOS 17, download the unsigned IPA from the
 
 For an **iPhone 17 Pro Max on iOS 26.6**, sign the unsigned IPA in 全能签 and
 then install it. 全能签 has no direct-install action. TrollStore cannot
-install on iOS 26. Steps, the device UDID, and the bundle id are in
+install on iOS 26. Steps and signing requirements are in
 [iPhone 17 Pro Max / iOS 26.6](docs/iphone17pm-ios26.6.md).
 
 ```
@@ -62,6 +62,8 @@ Everything below is **built and tested** against a real `grok` install.
 ## Quickstart
 
 ### 1. Run the bridge (on the machine where Grok Build is installed)
+
+**Only have a Linux server and an iPhone?** Choose **Connect a computer or server → Linux server** in the app. Follow the [Linux server guide](docs/linux-server.md) for SSH setup, device-code sign-in and Tailscale pairing over cellular. No desktop browser or QR code is needed.
 
 Needs **Node.js 20+** and **Grok Build** installed + signed in.
 

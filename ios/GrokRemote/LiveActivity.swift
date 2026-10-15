@@ -14,6 +14,7 @@ final class LiveActivityManager {
     var onPushToken: ((String) -> Void)?
 
     func start(sessionName: String, sessionId: String, phase: String, detail: String) {
+        guard !SharedConfig.isStandalone else { return }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         self.sessionId = sessionId
         if activity != nil { update(phase: phase, detail: detail); return }

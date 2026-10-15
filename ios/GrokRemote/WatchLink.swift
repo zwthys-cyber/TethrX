@@ -104,6 +104,7 @@ final class WatchLink: NSObject, ObservableObject {
     private var lastPushed: WatchSnapshot?
 
     func start() {
+        guard !SharedConfig.isStandalone else { return }
         guard let session else { return }
         session.delegate = self
         session.activate()

@@ -17,6 +17,8 @@ jobs:
       - name: syntax
         run: |
           for f in bridge/src/*.mjs; do node --check "$f"; done
+      - name: ESign configuration regression checks
+        run: python3 -m unittest discover -s ios/tools -p 'test_*.py' -v
       - name: version format
         run: |
           # The app's "your bridge is out of date" banner parses this, and anything

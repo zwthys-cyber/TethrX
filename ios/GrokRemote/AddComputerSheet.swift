@@ -18,11 +18,15 @@ struct AddComputerSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("On that computer's browser, type this address, then scan the code it shows. It will not open on this phone.")
+                    Text("On a computer with a browser, open this address to show a pairing QR code. For a Linux server, use the address and token fields below instead.")
                         .font(Grok.sans(15)).foregroundStyle(Grok.textDim).lineSpacing(4)
                         .fixedSize(horizontal: false, vertical: true)
 
                     codeLine("http://localhost:4180/pair")
+                    Text("Using a Linux server? No browser or QR code is needed. Keep Tailscale connected on this phone, then enter the server's 100.x.y.z:4180 address and the token from its terminal below.")
+                        .font(Grok.sans(14)).foregroundStyle(Grok.textDim).lineSpacing(3)
+                    Link("Linux server setup guide", destination: URL(string: "https://github.com/zwthys-cyber/TethrX/blob/main/docs/linux-server.md")!)
+                        .font(Grok.sans(14)).foregroundStyle(Grok.text)
 
                     Button { showScanner = true } label: {
                         Label("Scan to pair", systemImage: "qrcode.viewfinder")
@@ -67,8 +71,8 @@ struct AddComputerSheet: View {
                         divider
                     }
 
-                    field("Bridge address", "192.168.1.10:4180", $address, secure: false)
-                    field("Pairing token", "from the pairing page", $pairingToken, secure: true)
+                    field("Bridge address", "100.x.y.z:4180", $address, secure: false)
+                    field("Pairing token", "from the server terminal or pairing page", $pairingToken, secure: true)
 
                     if let failure {
                         HStack(alignment: .top, spacing: 8) {
@@ -80,14 +84,14 @@ struct AddComputerSheet: View {
                     Button { Task { await add() } } label: {
                         HStack(spacing: 10) {
                             if working { ProgressView().controlSize(.small).tint(.white) }
-                            (working ? Text("Connecting…") : Text("Add computer"))
+                            (working ? Text("Connecting…") : Text("Add computer or server"))
                         }
                     }
                     .buttonStyle(PillButton(kind: .prominent))
                     .disabled(working || address.trimmingCharacters(in: .whitespaces).isEmpty
                               || pairingToken.trimmingCharacters(in: .whitespaces).isEmpty)
 
-                    Text("Adding a computer switches to it. Your other computers stay paired. Swap between them any time.")
+                    Text("Adding a computer or server switches to it. Your other connections stay paired, and you can switch between them any time.")
                         .font(Grok.sans(13)).foregroundStyle(Grok.textFaint).lineSpacing(3)
                 }
                 .padding(.horizontal, Grok.gutter).padding(.vertical, 20)
@@ -95,7 +99,7 @@ struct AddComputerSheet: View {
             .background(Grok.bg)
             .scrollIndicators(.hidden)
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle("Add computer")
+            .navigationTitle("Add computer or server")
             .navigationBarTitleDisplayMode(.inline)
             .grokBar()
             .toolbar {
