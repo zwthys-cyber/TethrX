@@ -12,12 +12,9 @@ Your phone is only a control plane. Grok, its tools, and your code stay on your 
 For TrollStore/iOS 17, download the unsigned IPA from the
 **[latest GitHub release](https://github.com/zwthys-cyber/TethrX/releases/latest)**.
 
-For an **iPhone 17 Pro Max on iOS 26.6**, TrollStore cannot install the app.
-Download the unsigned IPA from the
-**[iPhone 17 Pro Max / iOS 26.6 release](https://github.com/zwthys-cyber/TethrX/releases/tag/iphone17pm-ios26.6)**
-and sign it in **全能签** with your own certificate. The profile has to include
-that phone's UDID. The package is the iPhone app only, so one App ID is enough.
-GitHub Actions builds it with Xcode 26.6 (workflow **ESign IPA**).
+For an **iPhone 17 Pro Max on iOS 26.6**, install the signed IPA. TrollStore
+cannot install on iOS 26. Steps, the device UDID, and the bundle id are in
+[iPhone 17 Pro Max / iOS 26.6](docs/iphone17pm-ios26.6.md).
 
 ```
 ┌───────────┐  WatchConnectivity  ┌────────────┐   HTTP + SSE    ┌─────────────────────┐   JSON-RPC (ACP)   ┌───────────┐
@@ -100,6 +97,10 @@ logged out.
 ### 2. Get the app
 
 **[Download TethrX on the App Store](https://apps.apple.com/app/tethrx/id6792520305)** — free, iPhone and iPad, iOS 17+.
+
+On the iPhone 17 Pro Max running iOS 26.6, install
+`TethrX-iPhone17ProMax-iOS26.6-signed.ipa` instead. See
+[iPhone 17 Pro Max / iOS 26.6](docs/iphone17pm-ios26.6.md).
 
 Tap **Scan to pair** and point at a code on `localhost:4180/pair` — or enter the **bridge address** + **pairing token** by hand — then **＋** to start a session.
 

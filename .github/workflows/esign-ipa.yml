@@ -100,7 +100,7 @@ jobs:
         run: |
           set -euo pipefail
           TAG="iphone17pm-ios26.6"
-          python3 -c 'from pathlib import Path; Path("/tmp/esign-notes.md").write_text("""Unsigned TethrX IPA for iPhone 17 Pro Max on iOS 26.6.\n\nBuilt with Xcode 26.6. There is no signature in this file. Import it into 全能签 with your own p12 certificate and the matching mobileprovision. That profile must list this iPhone'\''s UDID.\n\nThis package is the iPhone app only. The Watch app, home-screen widget, and share extension are omitted so one App ID can sign it. Pair from the app. TrollStore builds remain on the iOS 17 releases and do not install on iOS 26.\n""")'
+          cp docs/iphone17pm-ios26.6.md /tmp/esign-notes.md
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" TethrX-iPhone17ProMax-iOS26.6-esign.ipa --clobber
             gh release edit "$TAG" --notes-file /tmp/esign-notes.md --title "TethrX 1.1.5 for iPhone 17 Pro Max / iOS 26.6 (全能签)" --prerelease
