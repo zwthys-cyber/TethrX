@@ -25,7 +25,7 @@ const server = createServer((req, res) => {
     res.write(`id: ${++n}\ndata: {"n":${n}}\n\n`);
     if (n >= 8) { clearInterval(t); setTimeout(() => res.end(), 3000); }
   }, 500);
-  req.on("close", () => clearInterval(t));
+  res.on("close", () => clearInterval(t));
 });
 await new Promise((r) => server.listen(8080, "127.0.0.1", r));
 
