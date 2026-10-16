@@ -10,8 +10,10 @@ import UIKit
 final class PushManager: NSObject, ObservableObject {
     static let shared = PushManager()
 
-    @Published var enabled = !SharedConfig.isStandalone && UserDefaults.standard.bool(forKey: "push.enabled")
+    @Published var enabled = UserDefaults.standard.bool(forKey: "push.enabled")
     private(set) var lastToken: String?
+    /// Why iOS refused a device token, usually a signing profile without push.
+    @Published var registrationError: String?
 
     /// Set by the app; called whenever a fresh device token arrives.
     var onToken: ((String) -> Void)?
@@ -86,7 +88,7 @@ final class PushManager: NSObject, ObservableObject {
 
     /// Ask permission and register for remote notifications (user opted in).
     func enable() {
-        guard !SharedConfig.isStandalone else { return }
+        registrationError = nil
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
             Task { @MainActor in
                 self.enabled = granted
@@ -114,6 +116,7 @@ final class PushManager: NSObject, ObservableObject {
 
     func didRegister(_ deviceToken: Data) {
         let hex = deviceToken.map { String(format: "%02x", $0) }.joined()
+        registrationError = nil
         lastToken = hex
         onToken?(hex)
     }
@@ -218,6 +221,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     }
     func application(_ application: UIApplication,
                      didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        // No push this run — non-fatal.
+        // Non-fatal, but say so: a re-signed build whose profile lacks push lands here.
+        let message = error.localizedDescription
+        Task { @MainActor in PushManager.shared.registrationError = message }
     }
 }

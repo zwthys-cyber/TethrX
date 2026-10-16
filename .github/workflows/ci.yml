@@ -194,6 +194,10 @@ jobs:
           node bridge/test/rendezvous-fixture.mjs "$RUNNER_TEMP/rendezvous.json"
           swiftc -O -o "$RUNNER_TEMP/rendezvoustest" ios/tools/rendezvoustest.swift ios/GrokRemote/Rendezvous.swift
           "$RUNNER_TEMP/rendezvoustest" "$RUNNER_TEMP/rendezvous.json"
+      - name: push route from the provisioning profile
+        run: |
+          swiftc -O -o "$RUNNER_TEMP/pushroutetest" ios/tools/pushroutetest.swift ios/GrokRemote/PushRoute.swift
+          "$RUNNER_TEMP/pushroutetest"
       - name: build
         run: |
           set -o pipefail

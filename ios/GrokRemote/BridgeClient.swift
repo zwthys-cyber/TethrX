@@ -150,7 +150,8 @@ struct BridgeClient {
     /// Register this device's APNs token so the bridge can push alerts.
     func registerDevice(_ token: String) async throws {
         let (_, resp) = try await session.data(
-            for: try request("/api/devices", method: "POST", json: ["token": token]))
+            for: try request("/api/devices", method: "POST",
+                             json: ["token": token, "topic": PushRoute.topic, "env": PushRoute.environment.rawValue]))
         try Self.check(resp)
     }
 
