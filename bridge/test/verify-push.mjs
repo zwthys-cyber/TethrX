@@ -61,8 +61,14 @@ if (process.argv.includes("--live")) {
     body: "echo hi",
   });
   assert.equal(r.status, 200);
-  const lines = (await (await fetch(`https://ntfy.sh/${topic}/json?poll=1`)).text()).trim().split("\n");
-  const msg = JSON.parse(lines.at(-1));
+  // ntfy can answer the poll before the message is stored.
+  let msg;
+  for (let i = 0; i < 10 && !msg; i++) {
+    await new Promise((r) => setTimeout(r, 1500));
+    const text = (await (await fetch(`https://ntfy.sh/${topic}/json?poll=1`)).text()).trim();
+    if (text) msg = JSON.parse(text.split("\n").at(-1));
+  }
+  assert.ok(msg, "ntfy never returned the message");
   assert.equal(msg.title, "修复登录: approval needed");
   assert.equal(msg.click, "tethrx://session/s1");
   console.log("ntfy live: PASS");
