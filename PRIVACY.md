@@ -19,7 +19,7 @@ TethrX is an iPhone and iPad app that remotely controls Grok Build running on yo
 
 ## Push notifications
 
-If you enable notifications, your bridge (on your own computer) sends them to your phone through the Apple Push Notification service. The notification content — for example, that a task finished or needs approval — passes through Apple's infrastructure as required by iOS, and through nothing of ours.
+If you enable notifications, your bridge (on your own computer) sends them to your phone through the Apple Push Notification service. The notification content — for example, that a task finished or needs approval — passes through Apple's infrastructure as required by iOS, and through nothing of ours. If you configure ntfy or Bark on your bridge instead, the same notification content (a title, a short message such as the command awaiting approval, and the session id for opening it) goes to that service.
 
 ## Grok Build
 

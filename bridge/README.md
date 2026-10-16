@@ -49,6 +49,9 @@ Environment variables (all optional):
 | `GROK_BIN` | auto | Path to the `grok` binary |
 | `GROK_REMOTE_ASK` | `1` | Per-tool approval prompts (`0` inherits your global grok config) |
 | `GROK_REMOTE_TLS_CERT` / `_KEY` | — | Serve HTTPS |
+| `GROK_REMOTE_NTFY` | — | ntfy topic URL for push alerts |
+| `GROK_REMOTE_BARK` | — | Bark URL with your device key (push without an APNs key) |
+| `GROK_REMOTE_APNS_KEY` / `_KEY_ID` / `_TEAM_ID` | — | APNs key (`.p8`, absolute path), Key ID, Team ID |
 
 State (pairing token, session registry) lives in `~/.grok-remote/` — never in this package.
 

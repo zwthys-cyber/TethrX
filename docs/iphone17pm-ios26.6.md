@@ -27,6 +27,40 @@ GitHub Actions 的 **ESign IPA** 使用 Xcode 26.6 编译 arm64 真机包。App 
 
 ## 单 App 模式
 
-这个包仅包含 iPhone 主程序，不申请原作者的 App Group、共享钥匙串或 Apple 推送权限，也不打包手表、小组件、分享扩展和 Live Activity。配对令牌保存在主程序自己的钥匙串中。需要后台提醒时可使用 ntfy。
+这个包仅包含 iPhone 主程序，不申请原作者的 App Group 或共享钥匙串，也不打包手表、小组件、分享扩展和 Live Activity。配对令牌保存在主程序自己的钥匙串中。
+
+## 通知
+
+App 关闭或在后台时，Grok 需要审批或完成一轮回复会发提醒。正在 App 里看着该会话时不提醒。有两种方式，任选其一，也可以同时用。
+
+### 方式一：Apple 推送（证书带推送权限时）
+
+全能签会把描述文件里的权限写进 App。描述文件含 `aps-environment` 时，iOS 会发放设备令牌。App 会读取描述文件，把自己的 Bundle ID 和推送环境（生产或开发沙盒）告诉桥接服务，桥接服务就按这个 Bundle ID 发到对应的 Apple 服务器。
+
+光有证书还不够：**桥接服务还需要一个 APNs 密钥（`.p8`）**，必须在签发这张证书的**同一个 Apple 开发者团队**里创建（Certificates, Identifiers & Profiles → Keys → Apple Push Notifications service），并记下 Key ID 和 Team ID。购买的共享证书通常不提供这个密钥，这种情况请用方式二。
+
+有密钥时，在服务器上（桥接服务 0.1.33 或更新）：
+
+```bash
+GROK_REMOTE_APNS_KEY=/root/AuthKey_XXXXXXXXXX.p8 \
+GROK_REMOTE_APNS_KEY_ID=XXXXXXXXXX \
+GROK_REMOTE_APNS_TEAM_ID=你的TeamID \
+tethrx-bridge service install --tunnel
+```
+
+密钥路径要写绝对路径。然后在 App 的 **设置 → 通知** 打开 **推送通知**，允许通知后重新连接一次服务器。该页面会显示描述文件是否带推送、推送环境、Bundle ID 和 Team ID；iOS 拒绝发放令牌时会显示原因。审批提醒带 **批准 / 拒绝** 按钮。
+
+### 方式二：Bark（不需要 APNs 密钥）
+
+1. 在 App Store 安装 [Bark](https://apps.apple.com/app/bark-customed-notifications/id1403753865)，打开后复制它给出的地址，例如 `https://api.day.app/你的密钥`。
+2. 在服务器上：
+
+```bash
+GROK_REMOTE_BARK=https://api.day.app/你的密钥 tethrx-bridge service install --tunnel
+```
+
+提醒由 Bark 显示，点按会打开 TethrX 里对应的会话。Bark 没有批准 / 拒绝按钮，需要进 App 处理审批。Bark 地址里的密钥等同于推送权限，不要公开。启动日志只显示服务器域名，不显示密钥。
+
+也可以继续使用 ntfy（`GROK_REMOTE_NTFY`）；现在点按 ntfy 提醒同样会打开对应会话，中文会话标题也能正常显示。
 
 每次 GitHub 构建会检查实际 Bundle ID、单 App 标记、arm64 架构和扩展目录，再生成 IPA 与 SHA-256 文件。测试和编译均在 GitHub Actions 运行。
