@@ -168,7 +168,7 @@ async function e2e(serverPath) {
     const q = await fetch(`${url}/api/sessions/${session.id}/queue`, {
       method: "POST", headers: { ...auth, "content-type": "application/json" }, body: JSON.stringify({ text: "over the internet" }),
     });
-    assert.equal(q.status, 200);
+    assert.equal(q.status, 201);
     await poll("a live event through the tunnel", 20_000, async () => sawEventAt);
     console.log(`ok   POST stream is live through the tunnel (opened in ${sawRetryAt - started}ms, event after ${sawEventAt - queuedAt}ms)`);
     ac.abort();
