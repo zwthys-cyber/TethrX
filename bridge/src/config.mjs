@@ -62,6 +62,18 @@ const DEFAULTS = {
   // periodically and installs when nothing is running. Set GROK_REMOTE_GROK_AUTO_UPDATE=0
   // (or "grokAutoUpdate": false in config.json) to only check and let the phone decide.
   grokAutoUpdate: (process.env.GROK_REMOTE_GROK_AUTO_UPDATE ?? "1") !== "0",
+
+  // Internet access without a VPN: `--tunnel` or GROK_REMOTE_TUNNEL=1 starts a
+  // Cloudflare quick tunnel (no account needed) to a public https address. A token
+  // from your own Cloudflare tunnel (GROK_REMOTE_TUNNEL_TOKEN, with its hostname in
+  // GROK_REMOTE_TUNNEL_URL) gives a fixed address instead. See src/tunnel.mjs.
+  tunnel: process.env.GROK_REMOTE_TUNNEL || (process.argv.includes("--tunnel") ? "1" : ""),
+  tunnelToken: process.env.GROK_REMOTE_TUNNEL_TOKEN || "",
+  tunnelUrl: process.env.GROK_REMOTE_TUNNEL_URL || "",
+  cloudflaredBin: process.env.GROK_REMOTE_CLOUDFLARED || "",
+  // Where a changed tunnel address is announced so the phone can follow it
+  // (signed with the pairing token). "off" disables it.
+  rendezvous: process.env.GROK_REMOTE_RENDEZVOUS || "https://ntfy.sh",
 };
 
 function load() {
@@ -113,7 +125,8 @@ function load() {
 
 function pickOverrides(stored) {
   const out = {};
-  for (const k of ["host", "port", "defaultCwd", "defaultModel", "defaultPermissionMode", "transport", "grokAutoUpdate"]) {
+  for (const k of ["host", "port", "defaultCwd", "defaultModel", "defaultPermissionMode", "transport", "grokAutoUpdate",
+                   "tunnel", "tunnelToken", "tunnelUrl", "rendezvous"]) {
     if (stored[k] !== undefined) out[k] = stored[k];
   }
   return out;

@@ -29,6 +29,8 @@ jobs:
             echo "bridge version '$V' must be exactly three integers"; exit 1; }
       - name: unit
         run: node bridge/test/verify-fixes.mjs
+      - name: internet tunnel (unit)
+        run: node bridge/test/verify-tunnel.mjs
       - name: bridge meets app version requirement
         run: node bridge/test/verify-distribution.mjs
       - name: smoke
@@ -134,6 +136,33 @@ jobs:
           path: ${{ runner.temp }}/bridge-dist/*
           if-no-files-found: error
 
+  tunnel:
+    name: bridge over the internet (Cloudflare tunnel, no VPN)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+      - name: Install the packaged bridge
+        run: |
+          set -euo pipefail
+          npm pack ./bridge --ignore-scripts --pack-destination "$RUNNER_TEMP"
+          npm install --global --ignore-scripts --no-audit --no-fund --prefix "$RUNNER_TEMP/bridge-install" "$RUNNER_TEMP"/tethrx-bridge-*.tgz
+      - name: Phone's view through a public tunnel
+        run: |
+          # Starts the INSTALLED bridge with --tunnel (which downloads cloudflared
+          # itself), then, over the public https address only: auth, the pairing
+          # page staying private, a live POST event stream, and the signed address
+          # announcement the app follows. Cloudflare and ntfy.sh are external
+          # services, so a failed attempt gets retried before failing the build.
+          for attempt in 1 2 3; do
+            if node bridge/test/verify-tunnel.mjs --e2e "$RUNNER_TEMP/bridge-install/bin/tethrx-bridge"; then exit 0; fi
+            echo "attempt $attempt failed"; sleep 20
+          done
+          exit 1
+
   ios:
     name: ios (build)
     runs-on: macos-26
@@ -149,6 +178,11 @@ jobs:
           # its alignment can be checked on its own, which is where the bugs would be.
           swiftc -O -o "$RUNNER_TEMP/difftest" ios/tools/difftest.swift ios/GrokRemote/DiffModel.swift
           "$RUNNER_TEMP/difftest"
+      - name: rendezvous + pairing links agree with the bridge
+        run: |
+          node bridge/test/rendezvous-fixture.mjs "$RUNNER_TEMP/rendezvous.json"
+          swiftc -O -o "$RUNNER_TEMP/rendezvoustest" ios/tools/rendezvoustest.swift ios/GrokRemote/Rendezvous.swift
+          "$RUNNER_TEMP/rendezvoustest" "$RUNNER_TEMP/rendezvous.json"
       - name: build
         run: |
           set -o pipefail
@@ -172,7 +206,7 @@ jobs:
 
   bridge-release:
     name: publish tested bridge package
-    needs: [bridge, ios]
+    needs: [bridge, tunnel, ios]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     permissions:

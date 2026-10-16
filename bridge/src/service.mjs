@@ -6,7 +6,7 @@
 // computer is on"), usually at the worst moment: you're out, you send a message,
 // and nothing answers because a laptop rebooted for an update.
 //
-//   tethrx-bridge service install [--host 0.0.0.0] [--port 4180]
+//   tethrx-bridge service install [--tunnel] [--host 0.0.0.0] [--port 4180]
 //   tethrx-bridge service status
 //   tethrx-bridge service logs [-n 80]
 //   tethrx-bridge service restart
@@ -48,6 +48,8 @@ const PASSTHROUGH = [
   "GROK_REMOTE_TRANSPORT", "GROK_REMOTE_ASK", "GROK_REMOTE_NTFY", "GROK_REMOTE_PUBLIC_URL",
   "GROK_REMOTE_PERMISSION_MODE", "GROK_REMOTE_TLS_CERT", "GROK_REMOTE_TLS_KEY",
   "GROK_REMOTE_TLS_PORT", "GROK_BIN",
+  "GROK_REMOTE_TUNNEL", "GROK_REMOTE_TUNNEL_TOKEN", "GROK_REMOTE_TUNNEL_URL",
+  "GROK_REMOTE_CLOUDFLARED", "GROK_REMOTE_RENDEZVOUS",
 ];
 
 function run(cmd, args, { quiet = true } = {}) {
@@ -174,6 +176,7 @@ function parseFlags(argv) {
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--host" && argv[i + 1]) out.host = argv[++i];
     else if (argv[i] === "--port" && argv[i + 1]) out.port = argv[++i];
+    else if (argv[i] === "--tunnel") out.tunnel = true;
     else if ((argv[i] === "-n" || argv[i] === "--lines") && argv[i + 1]) out.lines = Number(argv[++i]);
   }
   return out;
@@ -217,6 +220,9 @@ async function install(flags) {
   const host = flags.host || process.env.GROK_REMOTE_HOST || config.host;
   const port = String(flags.port || config.port);
   const overrides = { GROK_REMOTE_HOST: host, GROK_REMOTE_PORT: port };
+  if (flags.tunnel) overrides.GROK_REMOTE_TUNNEL = "1";
+  const tunnel = Boolean(flags.tunnel || (process.env.GROK_REMOTE_TUNNEL && !/^(0|off|false|no)$/i.test(process.env.GROK_REMOTE_TUNNEL))
+    || process.env.GROK_REMOTE_TUNNEL_TOKEN);
   const env = envForService(overrides);
 
   let running = await probe(Number(port));
@@ -241,7 +247,8 @@ async function install(flags) {
 
   if (isMac) {
     mkdirSync(dirname(PLIST), { recursive: true });
-    writeFileSync(PLIST, plistXML(env));
+    writeFileSync(PLIST, plistXML(env), { mode: 0o600 });
+    chmodSync(PLIST, 0o600);
     const domain = `gui/${userInfo().uid}`;
     run("launchctl", ["bootout", `${domain}/${LABEL}`]);          // clear any previous copy
     let r = run("launchctl", ["bootstrap", domain, PLIST]);
@@ -252,7 +259,8 @@ async function install(flags) {
     }
   } else if (isLinux) {
     mkdirSync(dirname(UNIT), { recursive: true });
-    writeFileSync(UNIT, unitFile(env));
+    writeFileSync(UNIT, unitFile(env), { mode: 0o600 });
+    chmodSync(UNIT, 0o600);
     run("systemctl", ["--user", "daemon-reload"]);
     const r = run("systemctl", ["--user", "enable", "--now", "tethrx-bridge"]);
     if (!r.ok) {
@@ -279,9 +287,19 @@ async function install(flags) {
   console.log(`  ├─ logs        ${OUT_LOG}`);
   console.log(`  └─ manage      tethrx-bridge service status | logs | restart | uninstall`);
 
-  if (["127.0.0.1", "::1", "localhost"].includes(String(host))) {
+  if (tunnel) {
+    let url = null;
+    for (let i = 0; i < 40 && !url; i++) {
+      url = (await probe(Number(port)))?.tunnel?.url || null;
+      if (!url) await new Promise((r) => setTimeout(r, 1000));
+    }
+    console.log(`\n  Internet address (no VPN needed): ${url || "still starting — check again with  tethrx-bridge pair"}`);
+    console.log("  Get the pairing link for your phone with:\n\n      tethrx-bridge pair\n");
+  } else if (["127.0.0.1", "::1", "localhost"].includes(String(host))) {
     console.log("\n  NOTE: this service only listens on this computer, so your phone cannot reach it.");
-    console.log("  Reinstall it reachable with:\n");
+    console.log("  Reinstall it reachable over the internet (no VPN) with:\n");
+    console.log("      tethrx-bridge service install --tunnel\n");
+    console.log("  or on your own network with:\n");
     console.log("      tethrx-bridge service install --host 0.0.0.0\n");
     console.log("  Only do that on a network you trust — the pairing token is what protects the bridge.");
   }
@@ -341,8 +359,9 @@ async function status() {
   console.log(`  ├─ loaded      ${loaded ? "yes" : "no"}`);
   console.log(`  ├─ answering   ${health ? `yes  (v${health.version || "?"} on port ${port})` : `no   (nothing on port ${port})`}`);
   if (health) console.log(`  ├─ grok        ${health.grok || "NOT FOUND — the service can't see the grok binary"}`);
+  if (health?.tunnel) console.log(`  ├─ internet    ${health.tunnel.url || `not connected${health.tunnel.error ? ` (${health.tunnel.error})` : " yet"}`}`);
   console.log(`  └─ logs        ${OUT_LOG}`);
-  if (!installed) console.log("\n  Install it with: tethrx-bridge service install --host 0.0.0.0");
+  if (!installed) console.log("\n  Install it with: tethrx-bridge service install --tunnel");
   else if (!health) console.log("\n  Installed but not answering. Check: tethrx-bridge service logs");
   console.log("");
   return 0;
@@ -375,7 +394,7 @@ function usage() {
   console.log(`
   Run the TethrX bridge in the background, starting automatically at login.
 
-    tethrx-bridge service install [--host 0.0.0.0] [--port 4180]
+    tethrx-bridge service install [--tunnel] [--host 0.0.0.0] [--port 4180]
     tethrx-bridge service status
     tethrx-bridge service logs [-n 80]
     tethrx-bridge service restart

@@ -22,6 +22,18 @@ struct HealthInfo: Codable {
     var version: String?       // the bridge's own version
     var latestVersion: String? // newest GitHub bridge release (checked at most daily; nil offline)
     var tls: TlsInfo?
+    /// The bridge's public internet address (`tethrx-bridge --tunnel`), when it has one.
+    struct TunnelInfo: Codable {
+        var mode: String?
+        var url: String?
+        /// Where a changed address is announced (see Rendezvous.swift).
+        var rendezvous: String?
+        var error: String?
+    }
+    var tunnel: TunnelInfo?
+    /// The bridge accepts POST for the event stream, which is the form a Cloudflare
+    /// quick tunnel delivers live.
+    var streamPost: Bool?
 }
 
 /// Models reported by the paired computer's own `grok models` command.
@@ -44,6 +56,8 @@ struct SavedBridge: Codable, Identifiable, Hashable {
     /// This computer's plain-HTTP address from before its pinned-HTTPS upgrade —
     /// the per-computer fallback when its pinned port stops answering.
     var plainBase: String? = nil
+    /// Where this computer announces a changed internet address, so the app can follow it.
+    var rendezvous: String? = nil
     var tokenAccount: String { "bridge.token." + id }
 }
 

@@ -10,7 +10,7 @@ TethrX is an iPhone and iPad app that remotely controls Grok Build running on yo
 
 ## Where your data lives
 
-- **Your conversations, files, code, and commands** exist only on your own computer and on your phone while you view them. They travel directly between the two over your own network (local Wi-Fi, a personal hotspot, or your own VPN such as Tailscale), encrypted with HTTPS pinned to a certificate generated on your computer.
+- **Your conversations, files, code, and commands** exist only on your own computer and on your phone while you view them. They travel directly between the two over your own network (local Wi-Fi, a personal hotspot, or your own VPN such as Tailscale), encrypted with HTTPS pinned to a certificate generated on your computer. If you start the bridge with `--tunnel`, they instead travel over HTTPS through Cloudflare's tunnel service to your computer, and the bridge posts its current public address (with a signature, never the token) to ntfy.sh, or a server you choose, so the app can find it after a restart.
 - **Your pairing token** is stored in your phone's Keychain and on your computer. It is never sent anywhere else. It is shared with the TethrX share extension through a private Keychain group that only TethrX and its own extensions can read.
 - **Attached images** you send are saved to your own computer so Grok can view them, and nowhere else.
 - **Anything you share into TethrX** from another app (a link, some text, a screenshot) goes only to your own computer, and only when you tap Send.

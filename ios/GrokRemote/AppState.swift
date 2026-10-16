@@ -160,12 +160,14 @@ final class AppState: ObservableObject {
             savedBridges[i].pin = pin.isEmpty ? nil : pin
             savedBridges[i].plainBase = plainBase.isEmpty ? nil : plainBase
             if let serverId { savedBridges[i].serverId = serverId }
+            if let health { savedBridges[i].rendezvous = health.tunnel?.rendezvous }
             activeBridgeId = savedBridges[i].id
             Keychain.save(token, account: savedBridges[i].tokenAccount)
         } else {
             let bridge = SavedBridge(id: UUID().uuidString, name: name, address: addr,
                                      pin: pin.isEmpty ? nil : pin, serverId: serverId,
-                                     plainBase: plainBase.isEmpty ? nil : plainBase)
+                                     plainBase: plainBase.isEmpty ? nil : plainBase,
+                                     rendezvous: health?.tunnel?.rendezvous)
             savedBridges.append(bridge)
             activeBridgeId = bridge.id
             Keychain.save(token, account: bridge.tokenAccount)
@@ -288,6 +290,13 @@ final class AppState: ObservableObject {
         // Connecting for real ends the demo. This has to happen BEFORE the client is
         // built, because demo mode deliberately has none.
         if demoMode { exitDemo() }
+        // A whole pairing link pasted into the address field carries the token too.
+        if let link = PairingLink(baseURLString) {
+            baseURLString = link.address
+            token = link.token
+            pin = link.pin
+            plainBase = link.plainBase
+        }
         guard let client else {
             errorMessage = String(loc: "Enter the bridge address and pairing token.")
             return
@@ -304,9 +313,64 @@ final class AppState: ObservableObject {
             // Reconnect retried the same dead port and the only way out was walking
             // the whole setup wizard again. Try the plain-HTTP address instead.
             if await recoverFromDeadPin() { return }
+            if await recoverFromMovedTunnel() { return }
             connected = false
             errorMessage = friendly(error)
         }
+    }
+
+    /// The internet address stopped answering. A Cloudflare quick tunnel gets a new
+    /// address every time it restarts (a reboot, a network change), so ask the
+    /// rendezvous where this bridge went. Only an announcement signed with this
+    /// computer's pairing token is followed: anything else would be sending the token
+    /// to whoever posted it.
+    private func recoverFromMovedTunnel() async -> Bool {
+        let saved = savedBridges.first { $0.id == activeBridgeId }
+        let host = URL(string: normalizedBase)?.host?.lowercased() ?? ""
+        guard let server = saved?.rendezvous
+                ?? (host.hasSuffix(".trycloudflare.com") ? Rendezvous.defaultServer : nil),
+              !token.isEmpty,
+              let found = await Rendezvous.lookup(server: server, token: token,
+                                                  serverId: saved?.serverId ?? health?.serverId),
+              found.url != normalizedBase else { return false }
+
+        let prev = (base: baseURLString, pin: pin, plain: plainBase)
+        baseURLString = found.url
+        pin = ""
+        plainBase = ""
+        if let moved = client {
+            do {
+                try await establish(with: moved)
+                return true
+            } catch { /* fall through and restore */ }
+        }
+        baseURLString = prev.base
+        pin = prev.pin
+        plainBase = prev.plain
+        return false
+    }
+
+    /// A pairing link opened from outside the app (Safari, Notes, an SSH app). Held
+    /// for confirmation: any web page can open a tethrx:// link, and pairing silently
+    /// with whatever it names would hand this phone to someone else's bridge.
+    @Published var pendingPairLink: PairingLink?
+
+    /// Pair from a `tethrx://pair` link: straight in from the setup screen, or as an
+    /// additional computer when one is already connected.
+    @discardableResult
+    func pair(with link: PairingLink) async -> Bool {
+        if connected {
+            return await addComputer(address: link.address, pairingToken: link.token,
+                                     pin: link.pin, plainBase: link.plainBase)
+        }
+        if demoMode { exitDemo() }
+        baseURLString = link.address
+        token = link.token
+        pin = link.pin
+        plainBase = link.plainBase
+        userDisconnected = false
+        await connect()
+        return connected
     }
 
     /// One connection attempt against an already-built client. Throws so the caller
@@ -788,14 +852,22 @@ final class AppState: ObservableObject {
 
     /// Pair an additional computer without losing the current one: if the new
     /// credentials don't connect, the previous connection is restored.
-    func addComputer(address: String, pairingToken: String, pin newPin: String = "") async -> Bool {
+    func addComputer(address: String, pairingToken: String, pin newPin: String = "",
+                     plainBase newPlain: String = "") async -> Bool {
         let prev = (base: baseURLString, pin: pin, plain: plainBase, token: token)
         switching = true               // keep the UI mounted while we probe
         defer { switching = false }
-        baseURLString = address
-        token = pairingToken
-        pin = newPin
-        plainBase = ""                 // a fresh computer has no fallback address yet
+        if let link = PairingLink(address) {
+            baseURLString = link.address
+            token = link.token
+            pin = link.pin
+            plainBase = link.plainBase
+        } else {
+            baseURLString = address
+            token = pairingToken
+            pin = newPin
+            plainBase = newPlain       // a fresh computer has no fallback address unless its QR gave one
+        }
         await connect()
         if connected { return true }
         // Failed — put the old computer back and reconnect to it. The reconnect

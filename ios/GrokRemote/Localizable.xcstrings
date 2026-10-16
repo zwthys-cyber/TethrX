@@ -1,6 +1,237 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Use an SSH app on this phone to set up your Linux server. The bridge gives the server a secure internet address, so the phone connects over Wi-Fi or cellular with no VPN. No personal computer is needed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用这台手机上的 SSH 应用设置 Linux 服务器。桥接服务会为服务器提供一个安全的互联网地址，手机通过 Wi-Fi 或蜂窝网络即可连接，无需 VPN，也不需要个人电脑。"
+          }
+        }
+      }
+    },
+    "Set up over SSH from your phone; connect from anywhere, no VPN": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在手机上通过 SSH 设置；随时随地连接，无需 VPN"
+          }
+        }
+      }
+    },
+    "Start the bridge with an internet tunnel. It prints a public https address and a pairing link for the next step.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "以互联网隧道方式启动桥接服务。它会显示一个公网 https 地址和下一步要用的配对链接。"
+          }
+        }
+      }
+    },
+    "The first start downloads Cloudflare's tunnel program. No Cloudflare account, open port or VPN is needed. Keep this SSH session open while pairing. To keep the bridge running after disconnecting, follow the Linux service setup in the server guide.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "首次启动会自动下载 Cloudflare 的隧道程序。无需 Cloudflare 账户、开放端口或 VPN。配对期间请保持 SSH 会话打开。如需断开 SSH 后继续运行，请按服务器指南设置 Linux 后台服务。"
+          }
+        }
+      }
+    },
+    "Start the installed bridge with an internet tunnel. It keeps running and gives your computer a secure public address. Leave it going.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "以互联网隧道方式启动已安装的桥接服务。它会持续运行，并为你的电脑提供一个安全的公网地址。请保持它运行。"
+          }
+        }
+      }
+    },
+    "The first start downloads Cloudflare's tunnel program. No account, open port or VPN is needed. Every request still needs the pairing token.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "首次启动会自动下载 Cloudflare 的隧道程序。无需账户、开放端口或 VPN。每个请求仍然需要配对令牌。"
+          }
+        }
+      }
+    },
+    "Wi-Fi or cellular, no VPN needed": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wi-Fi 或蜂窝网络均可，无需 VPN"
+          }
+        }
+      }
+    },
+    "Copy the pairing link": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制配对链接"
+          }
+        }
+      }
+    },
+    "When the bridge is connected, the terminal shows an internet address and a pairing link starting with tethrx://pair. Copy the whole link. Opening it on this iPhone pairs the app, or you can paste it on the next screen.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "桥接服务连上后，终端会显示一个互联网地址和以 tethrx://pair 开头的配对链接。复制整条链接。在这台 iPhone 上打开它即可配对，也可以在下一页粘贴。"
+          }
+        }
+      }
+    },
+    "If the bridge runs as a service, or the link has scrolled away, print it again in your private SSH terminal:": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "如果桥接以后台服务运行，或链接已滚出屏幕，可在你自己的 SSH 终端重新显示："
+          }
+        }
+      }
+    },
+    "The link contains the pairing token. Do not share it or post it publicly. Do not open localhost:4180 on this iPhone.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "链接中包含配对令牌，不要分享或公开发布。不要在这台 iPhone 上打开 localhost:4180。"
+          }
+        }
+      }
+    },
+    "I copied the pairing link": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已复制配对链接"
+          }
+        }
+      }
+    },
+    "Scan the Internet code": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "扫描 Internet 二维码"
+          }
+        }
+      }
+    },
+    "Paste the pairing link from the server terminal. It works over Wi-Fi or cellular, with no VPN.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴服务器终端显示的配对链接。Wi-Fi 或蜂窝网络都能使用，无需 VPN。"
+          }
+        }
+      }
+    },
+    "On the pairing page, tap Scan to pair and aim at the code labelled INTERNET.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在配对页面上，点按「扫码配对」，对准标有 INTERNET 的二维码。"
+          }
+        }
+      }
+    },
+    "That doesn't look like a TethrX pairing link. Copy the whole line starting with tethrx://pair.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这看起来不是 TethrX 配对链接。请复制以 tethrx://pair 开头的整行内容。"
+          }
+        }
+      }
+    },
+    "Pair with this bridge?": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要与这个桥接服务配对吗？"
+          }
+        }
+      }
+    },
+    "Pair": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配对"
+          }
+        }
+      }
+    },
+    "TethrX will connect to %@ using the pairing token in this link. Continue only if you just copied it from your own computer or server.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TethrX 将使用此链接中的配对令牌连接 %@。只有在你刚从自己的电脑或服务器复制了这条链接时才继续。"
+          }
+        }
+      }
+    },
+    "Write and keep your tasks here. Connect a computer or Linux server to run them with Grok Build, from anywhere with an internet connection.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在这里编写并保存任务。连接电脑或 Linux 服务器后，只要有网络，就能随时随地用 Grok Build 运行它们。"
+          }
+        }
+      }
+    },
+    "Using a Linux server? No browser, QR code or VPN is needed. Start the bridge with  tethrx-bridge --tunnel, run  tethrx-bridge pair, and paste the pairing link it prints.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 Linux 服务器？无需浏览器、二维码或 VPN。用  tethrx-bridge --tunnel  启动桥接，运行  tethrx-bridge pair，然后粘贴它显示的配对链接。"
+          }
+        }
+      }
+    },
     "This app needs bridge %@ or newer. In your server or computer terminal, run:": {
       "extractionState": "manual",
       "localizations": {

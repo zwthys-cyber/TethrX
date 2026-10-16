@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.1.9 (59) — 2026-10-16
+
+### Added
+
+- Connect from anywhere with only an internet connection. `tethrx-bridge --tunnel` (or `service install --tunnel`) gives the bridge a public HTTPS address through a Cloudflare quick tunnel: no Tailscale or other VPN on the phone, no public IP, no port forwarding, no account. `cloudflared` is downloaded once if it is not installed.
+- Pairing links. The bridge prints a `tethrx://pair…` link, and `tethrx-bridge pair` prints it again. Opening it on the iPhone asks to pair; it can also be pasted into the app. The pairing page shows an **Internet** QR code.
+- The app follows a changed tunnel address after a restart. The bridge announces it on an ntfy topic derived from the pairing token, signed with an HMAC of the token; the app only follows correctly signed announcements for the same server.
+- The Linux server setup no longer needs Tailscale. Tailscale and LAN pairing still work.
+
+### Changed
+
+- The app opens the event stream with `POST`, which a quick tunnel delivers live (it holds `GET` streams until they end). Older bridges fall back to `GET`.
+- Proxied requests are never treated as loopback, so the pairing page stays private behind the tunnel. Service files are written owner-only, since they can now hold a tunnel token.
+- ntfy approval buttons use the tunnel address when no public URL is configured.
+
+### Distribution
+
+- Bridge 0.1.31. GitHub CI starts the installed package with `--tunnel` and checks it from the public address: token required, pairing page refused, live event stream, signed address announcement. A Swift check verifies the app's signature handling against the bridge's.
+
 ## 1.1.8 (58) — 2026-10-15
 
 ### Fixed

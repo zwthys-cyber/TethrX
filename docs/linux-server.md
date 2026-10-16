@@ -1,8 +1,8 @@
 # 只用 iPhone 连接 Linux 服务器
 
-没有个人电脑也能使用 TethrX。Grok Build 和桥接服务运行在 Linux 服务器，iPhone 是控制端。手机和服务器加入同一 Tailscale 网络后，可以通过 Wi-Fi 或蜂窝网络连接。
+没有个人电脑也能使用 TethrX。Grok Build 和桥接服务运行在 Linux 服务器，iPhone 是控制端。桥接服务用 `--tunnel` 启动后，会自动获得一个公网 `https://….trycloudflare.com` 地址：**手机只要能上网（Wi-Fi 或蜂窝网络）就能连接，不需要 Tailscale 或其他 VPN，不需要公网 IP，也不需要开放端口。**
 
-App 选择「连接电脑或服务器 → Linux 服务器」。桥接服务已经运行时，选择「我的桥接服务已在运行」，直接填写地址和令牌。
+App 选择「连接电脑或服务器 → Linux 服务器」。桥接服务已经运行时，选择「我的桥接服务已在运行」，直接粘贴配对链接。
 
 ## 准备服务器
 
@@ -24,58 +24,74 @@ grok login --device-auth
 
 把终端显示的授权网址复制到 iPhone 的 Safari，输入设备码完成登录。无需在服务器弹出浏览器。
 
-## Tailscale 与配对
+## 启动桥接并配对（无需 VPN）
 
-按照 [Tailscale 的 Linux 安装说明](https://tailscale.com/docs/install/linux)：
-
-```sh
-curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up
-tailscale ip -4
-```
-
-用 iPhone 打开终端显示的授权网址，将服务器加入你的网络。在 iPhone 安装 Tailscale，登录同一网络并打开 VPN 连接。记下服务器的 `100.x.y.z` 地址。
-
-先安装本仓库在 GitHub 检查通过后发布的桥接包，再让它只监听服务器的 Tailscale 地址：
+安装本仓库在 GitHub 检查通过后发布的桥接包，然后以互联网隧道方式启动：
 
 ```sh
 npm i -g --prefer-online https://github.com/zwthys-cyber/TethrX/releases/download/bridge-latest/tethrx-bridge.tgz
-GROK_REMOTE_HOST="$(tailscale ip -4)" tethrx-bridge
+tethrx-bridge --tunnel
 ```
 
-首次配对时保持 SSH 会话打开。终端会显示配对令牌，在 App 填写：
+首次启动会从 Cloudflare 的 GitHub 发布页自动下载 `cloudflared` 到 `~/.grok-remote/bin/`（已安装 `cloudflared` 时直接使用）。不需要 Cloudflare 账户。几秒后终端会显示：
 
-| 输入项 | 内容 |
-| --- | --- |
-| 桥接地址 | `http://100.x.y.z:4180`，替换为服务器实际 Tailscale 地址 |
-| 配对令牌 | 服务器终端显示的 token |
+```
+  ── internet address (no VPN needed) ──  https://xxxx-xxxx.trycloudflare.com
+  Pairing link: copy it, then open it on your iPhone or paste it into TethrX:
 
-点击「连接」。不需要扫码、服务器桌面或 `localhost:4180/pair` 页面。手机的 `localhost` 指向手机本身，不能用它连接服务器。配对页面仍只允许桥接服务本机访问。
+     tethrx://pair?addr=https%3A%2F%2Fxxxx-xxxx.trycloudflare.com&token=…
+```
 
-已有后台桥接服务但没有保存令牌时，可在运行它的服务器账户下读取配置：
+复制整条 `tethrx://pair…` 链接，然后任选一种方式：
+
+- 在 iPhone 上打开这条链接（例如粘贴到 Safari 地址栏），App 会询问是否配对，点「配对」。
+- 或在 App 的「连接你的服务器」页面点「粘贴」，也可以把链接粘贴到「桥接地址」输入框。
+
+之后无论在 Wi-Fi 还是蜂窝网络下，App 都能直接连接。配对页面 `localhost:4180/pair` 和令牌不会通过隧道暴露；经隧道的每个请求仍然必须带配对令牌。
+
+链接或终端内容滚走了，可以在同一个账户下重新显示：
 
 ```sh
-node -p 'JSON.parse(require("fs").readFileSync(require("os").homedir()+"/.grok-remote/config.json","utf8")).token'
+tethrx-bridge pair
 ```
 
-令牌只在自己的 SSH 终端读取并粘贴到 App，不要放进 GitHub 或公开日志。
+链接中包含配对令牌，只在自己的 SSH 终端查看，不要放进 GitHub、聊天截图或公开日志。
+
+## 地址变化时自动跟随
+
+免费的快速隧道每次重启（服务器重启、网络中断、桥接重启）都会换一个新地址。桥接服务会把新地址发布到 ntfy.sh 上的一个“会合”主题：主题名和每条消息的签名都由配对令牌派生，令牌本身不会发送出去。App 连不上旧地址时，会查询这个主题，只接受用本机令牌签名的地址，确认是同一台服务器后自动切换，无需重新配对。
+
+不想使用 ntfy.sh，可以用 `GROK_REMOTE_RENDEZVOUS=off` 关闭（地址变化后需要重新粘贴配对链接），或用 `GROK_REMOTE_RENDEZVOUS=https://你的-ntfy-服务器` 指向自建的 ntfy。
+
+## 固定地址（可选）
+
+有自己的域名并托管在 Cloudflare 时，可以创建一个命名隧道（Cloudflare Zero Trust → Networks → Tunnels），把公共主机名指向 `http://127.0.0.1:4180`，然后：
+
+```sh
+GROK_REMOTE_TUNNEL_TOKEN="隧道令牌" GROK_REMOTE_TUNNEL_URL="https://tethrx.example.com" tethrx-bridge
+```
+
+地址永久不变。隧道令牌同样属于机密，不要公开。
 
 ## SSH 断开后继续运行
 
 先结束前台桥接进程（Ctrl-C），再以相同的非 root Linux 账户安装后台服务：
 
 ```sh
-tethrx-bridge service install --host "$(tailscale ip -4)"
+tethrx-bridge service install --tunnel
 sudo loginctl enable-linger "$USER"
+tethrx-bridge pair
 ```
 
-Linux 服务需要可用的 `systemd --user`。不支持 systemd 的容器应由容器平台或管理员配置进程管理。服务保存安装时的 Tailscale 地址；服务器重新加入网络导致地址改变时，需要更新服务配置。
+Linux 服务需要可用的 `systemd --user`。不支持 systemd 的容器应由容器平台或管理员配置进程管理（启动命令为 `tethrx-bridge --tunnel`）。`tethrx-bridge service status` 会显示当前的互联网地址。
 
-在 iPhone 开启 Tailscale 并保持服务器在线，即可通过蜂窝网络连接。无需将 4180 端口映射到公网。自定义 Tailscale 访问规则或服务器防火墙时，需要允许手机经 Tailscale 访问该端口。
+## 仍可使用 Tailscale 或局域网
+
+不想经过 Cloudflare 时，原来的方式依然可用：服务器和 iPhone 加入同一 Tailscale 网络，用 `GROK_REMOTE_HOST="$(tailscale ip -4)" tethrx-bridge` 启动，在 App 中填写 `http://100.x.y.z:4180` 和配对令牌。
 
 ## 以后安装和更新
 
-GitHub 源码更新不会自动发布到 npm。按包名运行 `npx tethrx-bridge` 或 `npm i -g tethrx-bridge` 仍可能获得旧版，因此本仓库统一使用上面的 GitHub 下载地址。该地址指向通过 GitHub CI 的桥接安装包；工作流会检查包的版本不低于 App 要求，并安装、启动打包后的程序。
+GitHub 源码更新不会自动发布到 npm。按包名运行 `npx tethrx-bridge` 或 `npm i -g tethrx-bridge` 仍可能获得旧版，因此本仓库统一使用上面的 GitHub 下载地址。该地址指向通过 GitHub CI 的桥接安装包；工作流会检查包的版本不低于 App 要求，安装、启动打包后的程序，并通过真实的 Cloudflare 隧道从公网验证连接、令牌校验和实时事件流。
 
 需要更新已安装的后台桥接时，在同一个 Linux 账户下执行：
 
@@ -84,8 +100,8 @@ npm i -g --prefer-online https://github.com/zwthys-cyber/TethrX/releases/downloa
 tethrx-bridge service restart
 ```
 
-前台运行的桥接需先 Ctrl-C 停止，再使用原来的 `GROK_REMOTE_HOST` 地址启动。更新不会删除 `~/.grok-remote/` 中的配对、会话和证书。不要再用 npm 包名覆盖安装，否则可能降回旧版。
+前台运行的桥接需先 Ctrl-C 停止，再用 `tethrx-bridge --tunnel` 启动。更新不会删除 `~/.grok-remote/` 中的配对、会话和证书。不要再用 npm 包名覆盖安装，否则可能降回旧版。
 
 ## 应用关闭时的提醒
 
-单 App 全能签包不包含小组件、分享扩展、手表和 Live Activity，也不启用 Apple 推送权限。需要后台提醒时，可按照 README 的 ntfy 说明配置桥接服务，并在 iPhone 的 ntfy 应用订阅对应主题。
+单 App 全能签包不包含小组件、分享扩展、手表和 Live Activity，也不启用 Apple 推送权限。需要后台提醒时，可按照 README 的 ntfy 说明配置桥接服务，并在 iPhone 的 ntfy 应用订阅对应主题。开启隧道后，ntfy 提醒中的「批准 / 拒绝」按钮会自动使用隧道地址。

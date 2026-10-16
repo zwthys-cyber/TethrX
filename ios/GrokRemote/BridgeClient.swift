@@ -526,12 +526,21 @@ struct BridgeClient {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    var req = try request("/api/sessions/\(sessionId)/stream")
-                    req.timeoutInterval = 3600
-                    req.setValue(String(lastEventId), forHTTPHeaderField: "Last-Event-ID")
-                    req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-
-                    let (bytes, resp) = try await session.bytes(for: req)
+                    func openStream(_ method: String) async throws -> (URLSession.AsyncBytes, URLResponse) {
+                        var req = try request("/api/sessions/\(sessionId)/stream", method: method)
+                        req.timeoutInterval = 3600
+                        req.setValue(String(lastEventId), forHTTPHeaderField: "Last-Event-ID")
+                        req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+                        return try await session.bytes(for: req)
+                    }
+                    // POST first: a Cloudflare quick tunnel holds back a GET response
+                    // until it ends, so a GET stream through one never shows anything.
+                    // Bridges before 0.1.31 only route GET and answer POST with 404.
+                    var (bytes, resp) = try await openStream("POST")
+                    if let http = resp as? HTTPURLResponse, http.statusCode == 404 || http.statusCode == 405 {
+                        bytes.task.cancel()
+                        (bytes, resp) = try await openStream("GET")
+                    }
                     try Self.check(resp)
                     // Tell the fold loop the stream is genuinely open — the UI's
                     // "connected" state keys off delivery, not off dialing.

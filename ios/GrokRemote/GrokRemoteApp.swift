@@ -56,12 +56,22 @@ struct TethrXApp: App {
             // lock screen has to land on THAT session, not just on whatever the app was
             // last showing — a widget you can only look at is a widget nobody keeps.
             .onOpenURL { url in open(url) }
+            .alert("Pair with this bridge?",
+                   isPresented: Binding(get: { app.pendingPairLink != nil },
+                                        set: { if !$0 { app.pendingPairLink = nil } }),
+                   presenting: app.pendingPairLink) { link in
+                Button("Pair") { Task { await app.pair(with: link) } }
+                Button("Cancel", role: .cancel) {}
+            } message: { link in
+                Text("TethrX will connect to \(link.displayHost) using the pairing token in this link. Continue only if you just copied it from your own computer or server.")
+            }
         }
     }
 
     /// `tethrx://` links from the widgets (and from anywhere else that can open a URL).
     ///   tethrx://session/<uuid>  open that conversation, switching computers if needed
     ///   tethrx://new             start a session
+    ///   tethrx://pair?addr=…&token=…  pair a bridge, after the user confirms it
     /// Anything else is ignored rather than guessed at.
     private func open(_ url: URL) {
         guard url.scheme?.lowercased() == "tethrx" else { return }
@@ -74,6 +84,8 @@ struct TethrXApp: App {
             app.pendingOpenSessionId = id
         case "new":
             Task { if let fresh = await app.newSession() { app.pendingOpenSessionId = fresh.id } }
+        case "pair":
+            if let link = PairingLink(url.absoluteString) { app.pendingPairLink = link }
         default:
             break
         }

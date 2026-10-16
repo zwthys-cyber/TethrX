@@ -59,7 +59,7 @@ struct WelcomeView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            Text("Write and keep your tasks here. Connect a computer or Linux server to run them with Grok Build, including over cellular with Tailscale.")
+            Text("Write and keep your tasks here. Connect a computer or Linux server to run them with Grok Build, from anywhere with an internet connection.")
                 .font(Grok.sans(14)).foregroundStyle(Grok.textDim).lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
         }

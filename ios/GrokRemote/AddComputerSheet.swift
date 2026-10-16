@@ -23,8 +23,21 @@ struct AddComputerSheet: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     codeLine("http://localhost:4180/pair")
-                    Text("Using a Linux server? No browser or QR code is needed. Keep Tailscale connected on this phone, then enter the server's 100.x.y.z:4180 address and the token from its terminal below.")
+                    Text("Using a Linux server? No browser, QR code or VPN is needed. Start the bridge with  tethrx-bridge --tunnel, run  tethrx-bridge pair, and paste the pairing link it prints.")
                         .font(Grok.sans(14)).foregroundStyle(Grok.textDim).lineSpacing(3)
+                    PasteButton(payloadType: String.self) { strings in
+                        guard let text = strings.first else { return }
+                        Task { @MainActor in
+                            if let link = PairingLink(text) {
+                                use(link)
+                            } else {
+                                failure = String(loc: "That doesn't look like a TethrX pairing link. Copy the whole line starting with tethrx://pair.")
+                            }
+                        }
+                    }
+                    .labelStyle(.titleAndIcon)
+                    .buttonBorderShape(.capsule)
+                    .tint(Grok.accent)
                     Link("Linux server setup guide", destination: URL(string: "https://github.com/zwthys-cyber/TethrX/blob/main/docs/linux-server.md")!)
                         .font(Grok.sans(14)).foregroundStyle(Grok.text)
 
@@ -71,7 +84,16 @@ struct AddComputerSheet: View {
                         divider
                     }
 
-                    field("Bridge address", "100.x.y.z:4180", $address, secure: false)
+                    field("Bridge address", "https://….trycloudflare.com", $address, secure: false)
+                        .onChange(of: address) { _, text in
+                            // A whole pairing link pasted into the address field: split it up.
+                            if let link = PairingLink(text) {
+                                address = link.address
+                                pairingToken = link.token
+                                scannedPin = link.pin
+                                scannedPlain = link.plainBase
+                            }
+                        }
                     field("Pairing token", "from the server terminal or pairing page", $pairingToken, secure: true)
 
                     if let failure {
@@ -119,6 +141,7 @@ struct AddComputerSheet: View {
     private var divider: some View { Rectangle().fill(Grok.hairline).frame(height: 1) }
 
     @State private var scannedPin = ""   // cert fingerprint from the QR, if present
+    @State private var scannedPlain = "" // and the plain address it was upgraded from
 
     private func add() async {
         working = true
@@ -126,7 +149,7 @@ struct AddComputerSheet: View {
         defer { working = false }
         let ok = await app.addComputer(address: address.trimmingCharacters(in: .whitespaces),
                                        pairingToken: pairingToken.trimmingCharacters(in: .whitespaces),
-                                       pin: scannedPin)
+                                       pin: scannedPin, plainBase: scannedPlain)
         if ok {
             Haptics.success()
             dismiss()
@@ -136,26 +159,18 @@ struct AddComputerSheet: View {
     }
 
     private func handleScanned(_ code: String) {
-        guard let c = URLComponents(string: code), c.scheme == "tethrx", c.host == "pair",
-              let addr = c.queryItems?.first(where: { $0.name == "addr" })?.value,
-              let tok = c.queryItems?.first(where: { $0.name == "token" })?.value,
-              !addr.isEmpty, !tok.isEmpty else {
+        guard let link = PairingLink(code) else {
             failure = String(loc: "That doesn't look like a TethrX pairing code.")
             return
         }
-        let fp = c.queryItems?.first(where: { $0.name == "fp" })?.value ?? ""
-        let tlsPort = c.queryItems?.first(where: { $0.name == "tls" })?.value ?? ""
-        // URLComponents, not split(":") — an addr carrying a scheme would yield
-        // host "http" and build "https://http:8443".
-        let plainURL = addr.contains("://") ? addr : "http://\(addr)"
-        if !fp.isEmpty, !tlsPort.isEmpty, let host = URLComponents(string: plainURL)?.host {
-            address = "https://\(host):\(tlsPort)"
-            scannedPin = fp
-        } else {
-            address = addr
-            scannedPin = ""
-        }
-        pairingToken = tok
+        use(link)
+    }
+
+    private func use(_ link: PairingLink) {
+        address = link.address
+        pairingToken = link.token
+        scannedPin = link.pin
+        scannedPlain = link.plainBase
         Task { await add() }
     }
 

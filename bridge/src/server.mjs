@@ -11,12 +11,14 @@
 //   POST /api/sessions/:id/queue         -> { text } follow-up; runs now if idle
 //   POST /api/sessions/:id/branch        -> fork this session, carrying a handoff
 //   GET  /api/sessions/:id/stream        -> SSE stream of normalized Grok events
+//   POST /api/sessions/:id/stream        -> the same stream (live through quick tunnels)
 //   GET  /api/sessions/:id/media?name=images/1.jpg -> one generated image from that grok session
 //   GET  /api/usage/history?days=30      -> day-by-day token/cost rollups
 //   GET  /                               -> bundled web test client
 //
 // Also `tethrx-bridge service install|status|logs|restart|uninstall` to run the
-// bridge as a background service instead of a terminal process.
+// bridge as a background service instead of a terminal process, `--tunnel` for a
+// public internet address (no VPN), and `tethrx-bridge pair` for the pairing link.
 //
 // Auth: every /api route (except health) requires `Authorization: Bearer <token>`.
 // SSE also accepts `?token=` because browser EventSource can't set headers (native
@@ -46,6 +48,7 @@ import * as awake from "./awake.mjs";
 import * as git from "./git.mjs";
 import { listGrokModels } from "./models.mjs";
 import { locateSessionMedia, mediaContentType } from "./media.mjs";
+import { startTunnel, tunnelMode, pairingLink, readTunnelState } from "./tunnel.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(__dirname, "..", "public");
@@ -56,6 +59,26 @@ const PUBLIC_DIR = join(__dirname, "..", "public");
 if (process.argv[2] === "service") {
   const { runServiceCommand } = await import("./service.mjs");
   process.exit(await runServiceCommand(process.argv.slice(3)));
+}
+
+// `tethrx-bridge pair` prints what the phone needs, for a bridge running as a
+// service whose banner (and token) went to a log file instead of a terminal.
+if (process.argv[2] === "pair") {
+  let state = readTunnelState(config.stateDir);
+  try { if (state?.pid) process.kill(state.pid, 0); } catch { state = null; }   // left by a bridge that died
+  console.log("\n  TethrX pairing");
+  if (state?.url) {
+    console.log(`  ├─ internet address  ${state.url}`);
+    console.log(`  ├─ pairing token     ${config.token}`);
+    console.log("  └─ pairing link (copy it, then open it on your iPhone or paste it into the app):\n");
+    console.log(`     ${pairingLink(state.url, config.token)}\n`);
+  } else {
+    console.log(`  ├─ pairing token     ${config.token}`);
+    console.log("  └─ no internet tunnel is running. Start the bridge with  tethrx-bridge --tunnel");
+    console.log("     or install the service with  tethrx-bridge service install --tunnel\n");
+  }
+  console.log("  The token gives full control of this account. Do not share it or post it publicly.\n");
+  process.exit(0);
 }
 
 // Tee everything the bridge prints into a small ring buffer, exposed at
@@ -181,8 +204,10 @@ function reachableAddresses() {
 }
 
 // True only for requests from THIS machine — the pairing page reveals the token,
-// so it must never be served to the LAN/Tailscale.
+// so it must never be served to the LAN/Tailscale. The internet tunnel connects
+// from loopback too, so anything that arrived through a proxy is not local.
 function isLoopback(req) {
+  if (req.headers["cf-connecting-ip"] || req.headers["cf-ray"] || req.headers["x-forwarded-for"]) return false;
   const a = req.socket?.remoteAddress || "";
   return a === "127.0.0.1" || a === "::1" || a === "::ffff:127.0.0.1";
 }
@@ -199,6 +224,8 @@ function pairPageHTML() {
     token: config.token, port, addrs, loopbackOnly,
     tlsPort: tls && pinnedListening ? tlsPort : null,
     fp: tls && pinnedListening ? tls.fingerprint : null,
+    internet: internet?.url || null,
+    internetStarting: Boolean(internet && internet.mode !== "off" && !internet.url),
   });
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pair TethrX</title><script src="/qrcode.js"></script>
@@ -223,7 +250,8 @@ button{font:inherit;font-size:13px;color:#000;background:#fff;border:0;border-ra
 </style></head><body><div class="wrap">
 <div class="mark">T</div>
 <h1>Pair your phone</h1>
-<p class="sub">In TethrX, tap <b>Scan to pair</b> and point your phone at a code below. Wi-Fi works at home; Tailscale works from anywhere.</p>
+<p class="sub">In TethrX, tap <b>Scan to pair</b> and point your phone at a code below. The Internet code works anywhere the phone is online, with no VPN. Wi-Fi works at home.</p>
+<div id="internet"></div>
 <div id="cards"></div>
 <div class="card">
   <div class="eyebrow">Pairing token</div>
@@ -236,7 +264,18 @@ button{font:inherit;font-size:13px;color:#000;background:#fff;border:0;border-ra
 var D = ${data};
 document.getElementById('tok').textContent = D.token;
 var host = document.getElementById('cards');
-if (D.loopbackOnly) {
+var net = document.getElementById('internet');
+if (D.internet) {
+  var ip = 'tethrx://pair?addr=' + encodeURIComponent(D.internet) + '&token=' + encodeURIComponent(D.token);
+  net.innerHTML = '<div class="card"><div class="eyebrow">Internet · no VPN needed</div><div class="qr" id="qnet"></div><div class="addr">' + D.internet + '</div></div>';
+  var nq = qrcode(0, 'M'); nq.addData(ip); nq.make();
+  document.getElementById('qnet').innerHTML = nq.createSvgTag({ scalable: true, margin: 0 });
+} else if (D.internetStarting) {
+  net.innerHTML = '<div class="card dim">The internet tunnel is still starting. Reload this page in a few seconds.</div>';
+}
+if (D.loopbackOnly && (D.internet || D.internetStarting)) {
+  // Loopback-only is the right posture with a tunnel: nothing else to set up.
+} else if (D.loopbackOnly) {
   // NOTE: this block is emitted through a server-side template literal, where a
   // lone \' collapses to a raw apostrophe and breaks the whole inline script
   // (SyntaxError), leaving the page with no token and no QR codes in every
@@ -248,9 +287,12 @@ if (D.loopbackOnly) {
     '<div class="tokrow"><code>GROK_REMOTE_HOST=0.0.0.0 tethrx-bridge</code>' +
     '<button onclick="navigator.clipboard.writeText(\\'GROK_REMOTE_HOST=0.0.0.0 tethrx-bridge\\')">Copy</button></div>' +
     '<p class="dim" style="margin:12px 0 0;font-size:12px">Then reload this page and the QR codes will appear. Only do this on a network you trust: the token is what protects the bridge.</p>' +
+    '<p style="margin:14px 0 4px;line-height:1.5">To connect from anywhere with only an internet connection (no VPN), start it like this instead:</p>' +
+    '<div class="tokrow"><code>tethrx-bridge --tunnel</code>' +
+    '<button onclick="navigator.clipboard.writeText(\\'tethrx-bridge --tunnel\\')">Copy</button></div>' +
     '</div>';
 } else if (!D.addrs.length) {
-  host.innerHTML = '<div class="card dim">No network address found. Connect to Wi-Fi or start Tailscale, then reload.</div>';
+  host.innerHTML = '<div class="card dim">No network address found. Connect to Wi-Fi, or start the bridge with --tunnel, then reload.</div>';
 }
 if (!D.loopbackOnly) D.addrs.forEach(function(a){
   var addr = a.ip + ':' + D.port;
@@ -411,8 +453,9 @@ function notifyPermission(session, event, reminderStep = 0) {
   const reject = (event.options || []).find((o) => /reject|deny/i.test(o.kind || o.optionId));
 
   let actions;
-  if (config.publicUrl && event.requestId) {
-    const base = config.publicUrl.replace(/\/$/, "");
+  const publicUrl = config.publicUrl || internet?.url || "";
+  if (publicUrl && event.requestId) {
+    const base = publicUrl.replace(/\/$/, "");
     const parts = [];
     // method=POST is ntfy's default, but the route now rejects anything else, so say it.
     if (allow) parts.push(`http, Approve, ${base}/api/approve/${mintApprovalToken(session.id, event.requestId, allow.optionId)}, method=POST, clear=true`);
@@ -1134,6 +1177,12 @@ async function handle(req, res) {
       // pinned HTTPS on its next connect (the QR remains the out-of-band root
       // of trust for first-time pairing).
       tls: tls && pinnedListening ? { port: tlsPort, fingerprint: tls.fingerprint } : null,
+      // The public internet address, and where it is re-announced when it changes.
+      tunnel: internet && internet.mode !== "off"
+        ? { mode: internet.mode, url: internet.url, rendezvous: internet.rendezvous, error: internet.url ? null : internet.error }
+        : null,
+      // POST /stream is the form that streams through a Cloudflare quick tunnel.
+      streamPost: true,
     });
   }
 
@@ -1823,7 +1872,10 @@ async function handle(req, res) {
       return send(res, 400, { error: "unknown action" });
     }
 
-    if (sub === "stream" && req.method === "GET") {
+    // POST as well as GET: Cloudflare's quick tunnels hold back every GET response
+    // until it ends, which for a live stream is never. POST is delivered as written.
+    if (sub === "stream" && (req.method === "GET" || req.method === "POST")) {
+      if (req.method === "POST") req.resume();
       res.writeHead(200, {
         "content-type": "text/event-stream",
         "cache-control": "no-cache, no-transform",
@@ -1873,6 +1925,8 @@ let pinnedServer = null;
 // up (its port taken by a second bridge, say) sent apps to pin an address that can
 // never answer — and a pinned app has no way to tell that apart from a dead bridge.
 let pinnedListening = false;
+// The public internet tunnel (see tunnel.mjs); started once the HTTP port is bound.
+let internet = null;
 if (tls && tlsPort !== config.port) {
   pinnedServer = createHttpsServer({ cert: tls.cert, key: tls.key }, handler);
   pinnedServer.on("error", (err) => {
@@ -1896,6 +1950,7 @@ function shutdown() {
     try { store.get(summary.id)?.acp?.stop(); } catch { /* ignore */ }
   }
   try { bonjour?.kill(); } catch { /* ignore */ }
+  try { internet?.stop(); } catch { /* ignore */ }
   try { awake.release(); } catch { /* ignore */ }
   try { usageHistory.flush(); } catch { /* ignore */ }   // counters are batched; don't lose the tail
   process.exit(0);
@@ -1936,6 +1991,23 @@ function resumeQueuedWork() {
 server.listen(config.port, listenHost, async () => {
   advertiseBonjour();
   pinnedServer?.listen(tlsPort, listenHost, () => { pinnedListening = true; });
+  if (tunnelMode(config) !== "off") {
+    internet = startTunnel({
+      config,
+      port: config.port,
+      onChange(url) {
+        if (!url) { console.log("[tunnel] internet address offline; reconnecting…"); return; }
+        console.log(`\n  ── internet address (no VPN needed) ──  ${url}`);
+        // Same rule as the banner below: the token only ever goes to a live terminal.
+        if (process.stdout.isTTY) {
+          console.log("  Pairing link: copy it, then open it on your iPhone or paste it into TethrX:\n");
+          console.log(`     ${pairingLink(url, config.token)}\n`);
+        } else {
+          console.log("  Run  tethrx-bridge pair  in a terminal to get the pairing link.\n");
+        }
+      },
+    });
+  }
   setTimeout(resumeQueuedWork, 2500).unref?.();
   startGrokUpdateLoop();
   // Transcripts left behind by a session that was deleted mid-turn, before delete()
@@ -1962,6 +2034,10 @@ server.listen(config.port, listenHost, async () => {
   console.log(`  ├─ push (apns) ${apns.enabled ? `on  (${apns.tokens.length} device${apns.tokens.length === 1 ? "" : "s"})` : "off  (set apns key in config.json)"}`);
   console.log(`  ├─ push (ntfy) ${config.ntfy || "off  (set GROK_REMOTE_NTFY)"}`);
   if (config.publicUrl) console.log(`  ├─ public url  ${config.publicUrl}  (lock-screen approve/reject)`);
+  if (internet) {
+    console.log(`  ├─ internet    ${internet.mode === "named" ? "your Cloudflare tunnel" : "Cloudflare quick tunnel"} starting… (address below)`);
+    console.log(`  ├─ follow-me   ${internet.rendezvous ? `new addresses announced via ${internet.rendezvous} (signed)` : "off"}`);
+  }
   // Only ever print the real token to an interactive terminal. Run as a service, stdout
   // is a log file that `service logs` tails and users paste into bug reports, and it was
   // being written world-readable with the token in it: any other local account could
@@ -1971,7 +2047,8 @@ server.listen(config.port, listenHost, async () => {
   } else {
     console.log(`  └─ pairing token: hidden (not a terminal). Open ${scheme}://localhost:${config.port}/pair to see it.\n`);
   }
-  if (config.host === "127.0.0.1") {
-    console.log("  (loopback only — set GROK_REMOTE_HOST=0.0.0.0 or use Tailscale to reach it from your phone)\n");
+  if (config.host === "127.0.0.1" && !internet) {
+    console.log("  (loopback only — run  tethrx-bridge --tunnel  to reach it from your phone over the internet,");
+    console.log("   or set GROK_REMOTE_HOST=0.0.0.0 for the same Wi-Fi)\n");
   }
 });

@@ -32,6 +32,19 @@ Default bind is `127.0.0.1` (safe). If you set `GROK_REMOTE_HOST=0.0.0.0` withou
 an untrusted LAN, the token is sniffable. **Mitigation:** use Tailscale (WireGuard-encrypted)
 or enable TLS (`scripts/gen-cert.sh`) when binding beyond loopback.
 
+### [Info] Internet tunnel (`--tunnel`)
+The tunnel puts the bridge on a public `trycloudflare.com` address, so the 192-bit token is
+the only barrier against the internet, and traffic is decrypted at Cloudflare's edge.
+The bridge itself stays bound to loopback. Requests carrying proxy headers
+(`cf-connecting-ip`, `cf-ray`, `x-forwarded-for`) are never treated as loopback, so `/pair`
+(which shows the token) refuses them; CI checks this through a real tunnel. The address
+announcement on ntfy uses a topic of `sha256("tethrx-rendezvous-topic\n" + token)` and an
+HMAC-SHA256 keyed with the token. The app ignores unsigned or foreign announcements, so a
+third party cannot redirect it, and the token never leaves the two devices. `cloudflared` is
+downloaded over HTTPS from Cloudflare's GitHub releases; set `GROK_REMOTE_CLOUDFLARED` to
+use a binary you installed and verified yourself. Pairing links opened from other apps
+need confirmation in the app, so a web page cannot silently pair the phone with another bridge.
+
 ### [Low] `?token=` query-param auth can leak via logs/referrer
 SSE accepts `?token=` because browser `EventSource` can't set headers. Query strings can
 land in proxy/access logs. The iOS app uses the `Authorization` header; the query form is

@@ -33,7 +33,8 @@ Manage it with `tethrx-bridge service status|logs|restart|uninstall`. On Linux,
 ## Reaching it from your phone
 
 - **Same Wi-Fi:** use the LAN address it prints.
-- **Anywhere (cellular):** put your computer and phone on [Tailscale](https://tailscale.com) and use the `100.x` address. Never expose the bridge directly to the public internet — it can run commands on your machine.
+- **Anywhere (Wi-Fi or cellular, no VPN):** run `tethrx-bridge --tunnel`. It starts a Cloudflare quick tunnel to a public `https://….trycloudflare.com` address and prints a `tethrx://pair…` link to open on the phone (`tethrx-bridge pair` prints it again). The bridge stays bound to loopback and every request still needs the pairing token.
+- **Anywhere, privately:** put your computer and phone on [Tailscale](https://tailscale.com) and use the `100.x` address.
 
 ## Config
 
@@ -42,6 +43,8 @@ Environment variables (all optional):
 | Var | Default | Notes |
 | --- | --- | --- |
 | `GROK_REMOTE_HOST` | `127.0.0.1` | `0.0.0.0` to allow LAN/Tailscale |
+| `GROK_REMOTE_TUNNEL` | — | `1` (or `--tunnel`) for a public internet address |
+| `GROK_REMOTE_RENDEZVOUS` | `https://ntfy.sh` | Where a changed tunnel address is announced (signed); `off` to disable |
 | `GROK_REMOTE_PORT` | `4180` | Port |
 | `GROK_BIN` | auto | Path to the `grok` binary |
 | `GROK_REMOTE_ASK` | `1` | Per-tool approval prompts (`0` inherits your global grok config) |

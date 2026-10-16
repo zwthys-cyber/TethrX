@@ -63,16 +63,16 @@ Everything below is **built and tested** against a real `grok` install.
 
 ### 1. Run the bridge (on the machine where Grok Build is installed)
 
-**Only have a Linux server and an iPhone?** Choose **Connect a computer or server → Linux server** in the app. Follow the [Linux server guide](docs/linux-server.md) for SSH setup, device-code sign-in and Tailscale pairing over cellular. No desktop browser or QR code is needed.
+**Only have a Linux server and an iPhone?** Choose **Connect a computer or server → Linux server** in the app. Follow the [Linux server guide](docs/linux-server.md) for SSH setup, device-code sign-in and pairing over the internet with `--tunnel`. No VPN, desktop browser or QR code is needed.
 
 Needs **Node.js 20+** and **Grok Build** installed + signed in.
 
 ```bash
 npm i -g --prefer-online https://github.com/zwthys-cyber/TethrX/releases/download/bridge-latest/tethrx-bridge.tgz
-GROK_REMOTE_HOST=0.0.0.0 tethrx-bridge
+tethrx-bridge --tunnel
 ```
 
-It prints a **pairing token** and its address.
+It prints a **pairing token**, a public `https://….trycloudflare.com` address and a `tethrx://pair…` **pairing link**. The phone connects from anywhere it has internet (Wi-Fi or cellular): no Tailscale or other VPN, no public IP, no port forwarding. Open the link on the iPhone, or paste it into the app. `tethrx-bridge pair` prints it again. For the same Wi-Fi only, `GROK_REMOTE_HOST=0.0.0.0 tethrx-bridge` still works.
 
 Install this fork from its **GitHub bridge package**, as above. Updating the GitHub repository does not publish the npm package name; `npx tethrx-bridge` or `npm i -g tethrx-bridge` can still select an older bridge. GitHub CI packages, installs and starts the distributed tarball, checks it meets the app's minimum version, then publishes [the bridge release](https://github.com/zwthys-cyber/TethrX/releases/tag/bridge-latest) before the new ESign app build starts.
 
@@ -80,11 +80,12 @@ Install this fork from its **GitHub bridge package**, as above. Updating the Git
 log in and restarts itself if it crashes, so the bridge is still there after a reboot:
 
 ```bash
-tethrx-bridge service install --host 0.0.0.0
+tethrx-bridge service install --tunnel
 ```
 
-`--host 0.0.0.0` is what makes it reachable from your phone; only do that on a network
-you trust, since the pairing token is what protects the bridge. Manage it with:
+`--tunnel` is what makes it reachable from your phone over the internet; `tethrx-bridge pair`
+then prints the pairing link. (`--host 0.0.0.0` instead serves your local network only; do
+that only on a network you trust.) Manage it with:
 
 ```bash
 tethrx-bridge service status      # installed? loaded? answering? can it see grok?
@@ -97,7 +98,7 @@ macOS installs a LaunchAgent, Linux a `systemd --user` unit; both run as you, ne
 as root. On Linux, add `loginctl enable-linger $USER` to keep it running when you're
 logged out.
 
-**Easiest pairing:** open **`http://localhost:4180/pair`** on the computer running the bridge. It shows a scannable QR code (one for Wi-Fi, one for Tailscale) plus the token to copy. That page is **loopback-only** — the token never leaves the machine.
+**Easiest pairing:** open **`http://localhost:4180/pair`** on the computer running the bridge. It shows a scannable QR code (one for the internet address, one per Wi-Fi/LAN address) plus the token to copy. That page is **loopback-only** — it refuses requests that arrive through the tunnel, and the token never leaves the machine.
 
 ### 2. Get the app
 
@@ -141,11 +142,16 @@ The phone must reach the bridge. Options, easiest first:
 
 | Setup | How | Notes |
 | --- | --- | --- |
+| **Internet tunnel** (recommended) | `tethrx-bridge --tunnel`, open the printed pairing link on the phone | Works anywhere the phone is online. No VPN app, no public IP, no port forwarding, no account. HTTPS to Cloudflare's edge |
 | **Same Wi-Fi** | `GROK_REMOTE_HOST=0.0.0.0`, use your Mac's LAN IP | Home/office only |
-| **Tailscale** (recommended) | Install on Mac + phone (same tailnet). Bind `0.0.0.0`, use the Mac's `100.x.y.z` address in the app | Works over cellular, encrypted end-to-end, no port-forwarding |
+| **Tailscale** | Install on Mac + phone (same tailnet). Bind `0.0.0.0`, use the Mac's `100.x.y.z` address in the app | Encrypted end-to-end, nothing passes through Cloudflare |
 | **TLS on LAN** | `bash bridge/scripts/gen-cert.sh` then set `GROK_REMOTE_TLS_CERT` / `GROK_REMOTE_TLS_KEY` | Serves HTTPS; the app allows the self-signed cert on local networks |
 
-Never expose the bridge directly to the public internet — it can run code on your machine. Tailscale gives you remote access without doing that.
+**How the tunnel works.** The bridge runs Cloudflare's `cloudflared` (downloaded once into `~/.grok-remote/bin/` if it is not installed), which dials *out* to Cloudflare and receives a public `https://….trycloudflare.com` address that forwards to the bridge on loopback. The bridge itself keeps listening on `127.0.0.1` only. Every request still needs the pairing token; the `/pair` page refuses anything that came through the tunnel.
+
+Quick-tunnel addresses change when the tunnel restarts. The bridge then announces the new address on an [ntfy](https://ntfy.sh) topic whose name and per-message HMAC are both derived from the pairing token, and the app follows it only when the signature verifies, so a reboot does not mean pairing again. Set `GROK_REMOTE_RENDEZVOUS=off` to disable that, or point it at your own ntfy server. For an address that never changes, use your own Cloudflare tunnel: `GROK_REMOTE_TUNNEL_TOKEN=… GROK_REMOTE_TUNNEL_URL=https://tethrx.example.com tethrx-bridge`.
+
+The event stream is opened with `POST`, because Cloudflare's quick tunnels hold back `GET` streaming responses until they end. CI checks the installed package through a real quick tunnel on every change: auth, the private pairing page, live event delivery and the signed address announcement.
 
 ---
 
@@ -183,7 +189,11 @@ Subscribe to that topic in the [ntfy](https://ntfy.sh) app.
 
 | Var | Default | Meaning |
 | --- | --- | --- |
-| `GROK_REMOTE_HOST` | `127.0.0.1` | Bind address (`0.0.0.0` for LAN/Tailscale) |
+| `GROK_REMOTE_HOST` | `127.0.0.1` | Bind address (`0.0.0.0` for LAN/Tailscale; not needed for the tunnel) |
+| `GROK_REMOTE_TUNNEL` | — | `1` (or the `--tunnel` flag) for a public internet address via a Cloudflare quick tunnel |
+| `GROK_REMOTE_TUNNEL_TOKEN` / `_URL` | — | Your own Cloudflare tunnel's token and public hostname, for a fixed address |
+| `GROK_REMOTE_RENDEZVOUS` | `https://ntfy.sh` | Where a changed tunnel address is announced (signed); `off` to disable |
+| `GROK_REMOTE_CLOUDFLARED` | auto | Path to `cloudflared` (otherwise PATH, then a one-time download) |
 | `GROK_REMOTE_PORT` | `4180` | Port |
 | `GROK_REMOTE_TRANSPORT` | `acp` | `acp` (rich + approvals) or `headless` |
 | `GROK_REMOTE_ASK` | `1` | ACP per-tool prompts (`0` = inherit global grok config) |
@@ -200,7 +210,7 @@ State (pairing token, session registry, redirected grok-home) lives in `~/.grok-
 
 - **Token auth** on every request (minted on first run, stored `0600`). The iOS app keeps it in the **Keychain**.
 - Approvals mean Grok can't run a command or edit a file without your explicit tap (with `GROK_REMOTE_ASK=1`).
-- Use **Tailscale or TLS** whenever the bridge is reachable beyond loopback. Nothing talks to a third party except optional ntfy pushes you configure.
+- With `--tunnel`, traffic is HTTPS between the phone and Cloudflare's edge and passes through Cloudflare to the bridge's loopback port; the token check, approvals and loopback-only pairing page apply unchanged. The address announcement on ntfy carries the public address and a signature, never the token. Use **Tailscale or TLS** instead if nothing may pass through a third party. Without `--tunnel`, nothing talks to a third party except optional ntfy pushes you configure.
 
 ---
 
@@ -219,7 +229,7 @@ State (pairing token, session registry, redirected grok-home) lives in `~/.grok-
 - [x] **Sleep prevention** — the machine stays awake while a turn runs
 - [x] Persistence, launchd service, TLS, Keychain, reasoning-effort picker, Face ID lock
 - [ ] **Pinned HTTPS** — self-signed cert with its fingerprint in the pairing QR, so cleartext is never needed
-- [ ] **Relay** — for cellular without Tailscale (`grok agent headless --grok-ws-url wss://…` exists)
+- [x] **Internet access without a VPN** — `--tunnel` (Cloudflare quick tunnel), with signed address follow-up after restarts
 - [x] **Images** — send a photo from the phone (saved for Grok's read tool; ACP still rejects image content blocks). Pictures Grok generates render in the reply.
 
 ---
@@ -231,6 +241,7 @@ TethrX/
 ├── bridge/
 │   ├── src/{server,acp,grok,sessions,config,media}.mjs   # daemon (ACP + headless)
 │   ├── src/{apns,awake,git}.mjs                    # push, sleep prevention, git review
+│   ├── src/tunnel.mjs                              # internet tunnel + signed address rendezvous
 │   ├── scripts/{install-service,gen-cert}.sh       # launchd + TLS
 │   ├── public/index.html                           # web test client
 │   └── test/*.mjs                                  # smoke + ACP + verify tests
