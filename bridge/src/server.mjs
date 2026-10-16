@@ -39,6 +39,7 @@ import { SessionStore } from "./sessions.mjs";
 import { runHeadlessTurn, grokVersion } from "./grok.mjs";
 import { ensureAskGrokHome, AcpSession } from "./acp.mjs";
 import { loadApns } from "./apns.mjs";
+import { barkPayload, ntfyHeader, redactPushUrl } from "./notify.mjs";
 import { ScheduleStore, startScheduler } from "./schedules.mjs";
 import { UsageHistory } from "./usage-history.mjs";
 import { promptWithTitleGuidance } from "./titles.mjs";
@@ -420,10 +421,21 @@ async function pushNotify(session, { title, message, priority = "default", tags,
     title, body: message, sessionId: session.id,
     category, requestId, allowOptionId, rejectOptionId,
   }).catch(() => {});
+  const open = `tethrx://session/${encodeURIComponent(session.id)}`;
+  if (config.bark) {
+    try {
+      await fetch(config.bark, {
+        method: "POST",
+        headers: { "content-type": "application/json; charset=utf-8" },
+        body: JSON.stringify(barkPayload({ title, message, priority, sessionId: session.id, open })),
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch { /* best-effort */ }
+  }
   // Optional ntfy fallback.
   if (config.ntfy) {
     try {
-      const headers = { Title: title, Priority: priority };
+      const headers = { Title: ntfyHeader(title), Priority: priority, Click: open };
       if (tags) headers.Tags = tags;
       if (actions) headers.Actions = actions;
       await fetch(config.ntfy, { method: "POST", headers, body: message });
@@ -1263,7 +1275,7 @@ async function handle(req, res) {
   // Register this phone's APNs device token so the bridge can push alerts.
   if (pathname === "/api/devices" && req.method === "POST") {
     const body = await readJsonOrEmpty(req);
-    const ok = apns.addDevice(body.token);
+    const ok = apns.addDevice(body.token, { topic: body.topic, env: body.env });
     return send(res, ok ? 200 : 400, { ok, push: apns.enabled });
   }
 
@@ -2033,6 +2045,7 @@ server.listen(config.port, listenHost, async () => {
   console.log(`  ├─ pair phone  ${scheme}://localhost:${config.port}/pair  (open here, scan in the app)`);
   console.log(`  ├─ push (apns) ${apns.enabled ? `on  (${apns.tokens.length} device${apns.tokens.length === 1 ? "" : "s"})` : "off  (set apns key in config.json)"}`);
   console.log(`  ├─ push (ntfy) ${config.ntfy || "off  (set GROK_REMOTE_NTFY)"}`);
+  console.log(`  ├─ push (bark) ${config.bark ? redactPushUrl(config.bark) : "off  (set GROK_REMOTE_BARK)"}`);
   if (config.publicUrl) console.log(`  ├─ public url  ${config.publicUrl}  (lock-screen approve/reject)`);
   if (internet) {
     console.log(`  ├─ internet    ${internet.mode === "named" ? "your Cloudflare tunnel" : "Cloudflare quick tunnel"} starting… (address below)`);

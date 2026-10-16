@@ -16,6 +16,10 @@ const b64url = (x) => Buffer.from(x).toString("base64url");
 // settles: the send stalls forever and takes the token pruning with it.
 const REQUEST_TIMEOUT_MS = 10_000;
 
+const PRODUCTION_HOST = "https://api.push.apple.com";
+const SANDBOX_HOST = "https://api.sandbox.push.apple.com";
+const TOPIC_RE = /^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/;
+
 export class Apns {
   constructor({ stateDir, keyPath, keyId, teamId, topic }) {
     this.devicesPath = join(stateDir, "devices.json");
@@ -31,7 +35,12 @@ export class Apns {
         this.enabled = true;
       }
     } catch { /* leave disabled */ }
-    this.tokens = this._load();
+    // Re-signed builds (ESign and friends) carry their own bundle id and may hold a
+    // development profile, so each phone says which topic and APNs host it belongs to.
+    // Phones that registered before that are the App Store app: default topic, production.
+    const loaded = this._load();
+    this.tokens = loaded.tokens;
+    this.deviceInfo = loaded.info;
     // Live Activity push state: push-to-start tokens (per phone) + one update
     // token per session with a live activity.
     this.la = this._loadLa();
@@ -68,20 +77,43 @@ export class Apns {
   _load() {
     try {
       const d = JSON.parse(readFileSync(this.devicesPath, "utf8"));
-      return Array.isArray(d.tokens) ? d.tokens : [];
-    } catch { return []; }
+      const tokens = Array.isArray(d.tokens) ? d.tokens : [];
+      const info = d.info && typeof d.info === "object" ? d.info : {};
+      return { tokens, info };
+    } catch { return { tokens: [], info: {} }; }
   }
   _save() {
-    try { writeFileSync(this.devicesPath, JSON.stringify({ tokens: this.tokens }, null, 2), { mode: 0o600 }); }
-    catch { /* best-effort */ }
+    for (const t of Object.keys(this.deviceInfo)) if (!this.tokens.includes(t)) delete this.deviceInfo[t];
+    try {
+      writeFileSync(this.devicesPath, JSON.stringify({ tokens: this.tokens, info: this.deviceInfo }, null, 2), { mode: 0o600 });
+    } catch { /* best-effort */ }
   }
 
-  /** Register a phone's APNs device token (hex). Returns false if malformed. */
-  addDevice(token) {
+  /** Register a phone's APNs device token (hex), with the bundle id it was issued to
+   *  and its APNs environment ("production" | "development"). Returns false if malformed. */
+  addDevice(token, { topic, env } = {}) {
     if (typeof token !== "string" || !/^[0-9a-fA-F]{40,256}$/.test(token)) return false;
+    if (topic !== undefined && topic !== null && (typeof topic !== "string" || !TOPIC_RE.test(topic) || topic.length > 155)) return false;
+    if (env !== undefined && env !== null && env !== "production" && env !== "development") return false;
     const t = token.toLowerCase();
-    if (!this.tokens.includes(t)) { this.tokens.push(t); this._save(); }
+    const info = {};
+    if (topic && topic !== this.topic) info.topic = topic;
+    if (env === "development") info.env = env;
+    const before = JSON.stringify(this.deviceInfo[t] || {});
+    const known = this.tokens.includes(t);
+    if (!known) this.tokens.push(t);
+    if (Object.keys(info).length) this.deviceInfo[t] = info; else delete this.deviceInfo[t];
+    if (!known || before !== JSON.stringify(info)) this._save();
     return true;
+  }
+
+  /** Where one device's alerts go: its own topic, on the host matching its profile. */
+  route(token) {
+    const info = this.deviceInfo[token] || {};
+    return {
+      topic: info.topic || this.topic,
+      host: info.env === "development" ? SANDBOX_HOST : PRODUCTION_HOST,
+    };
   }
 
   _loadLa() {
@@ -129,7 +161,7 @@ export class Apns {
     try { jwt = this._providerToken(); }
     catch (e) { this._logOnce("sign", `cannot sign the provider token, check the .p8 key: ${e.message}`); return { status: 0 }; }
     const payloadStr = JSON.stringify({ aps });
-    const client = http2.connect("https://api.push.apple.com");
+    const client = http2.connect(PRODUCTION_HOST);
     client.on("error", () => {});
     try {
       return await new Promise((resolve) => {
@@ -221,13 +253,13 @@ export class Apns {
     return this._jwt;
   }
 
-  _sendOne(client, token, payloadStr, jwt) {
+  _sendOne(client, token, payloadStr, jwt, topic) {
     return new Promise((resolve) => {
       const req = client.request({
         ":method": "POST",
         ":path": `/3/device/${token}`,
         authorization: `bearer ${jwt}`,
-        "apns-topic": this.topic,
+        "apns-topic": topic,
         "apns-push-type": "alert",
         "apns-priority": "10",
       });
@@ -269,14 +301,22 @@ export class Apns {
       ...(allowOptionId ? { allowOptionId } : {}),
       ...(rejectOptionId ? { rejectOptionId } : {}),
     });
-    const client = http2.connect("https://api.push.apple.com");
-    client.on("error", () => {});
-    try {
-      const results = await Promise.all(this.tokens.map((t) => this._sendOne(client, t, payloadStr, jwt)));
-      const dead = new Set(results.filter((r) => Apns._isDead(r)).map((r) => r.token));
-      if (dead.size) { this.tokens = this.tokens.filter((t) => !dead.has(t)); this._save(); }
-    } catch { /* best-effort */ }
-    finally { try { client.close(); } catch { /* ignore */ } }
+    const byHost = new Map();
+    for (const t of this.tokens) {
+      const { host, topic } = this.route(t);
+      if (!byHost.has(host)) byHost.set(host, []);
+      byHost.get(host).push({ token: t, topic });
+    }
+    const results = await Promise.all([...byHost].map(async ([host, devices]) => {
+      const client = http2.connect(host);
+      client.on("error", () => {});
+      try {
+        return await Promise.all(devices.map((d) => this._sendOne(client, d.token, payloadStr, jwt, d.topic)));
+      } catch { return []; }
+      finally { try { client.close(); } catch { /* ignore */ } }
+    }));
+    const dead = new Set(results.flat().filter((r) => Apns._isDead(r)).map((r) => r.token));
+    if (dead.size) { this.tokens = this.tokens.filter((t) => !dead.has(t)); this._save(); }
   }
 }
 

@@ -48,6 +48,11 @@ const DEFAULTS = {
   // when the app isn't watching a session — approval-needed and turn-complete.
   ntfy: process.env.GROK_REMOTE_NTFY || "",
 
+  // Optional Bark push (https://bark.day.app): your Bark URL with its device key,
+  // e.g. https://api.day.app/AbCdEf. Works with any signing certificate and needs no
+  // APNs key on this computer; tapping the alert opens the session in TethrX.
+  bark: process.env.GROK_REMOTE_BARK || "",
+
   // Publicly-reachable base URL of THIS bridge (e.g. https://100.x.y.z:4180 over
   // Tailscale). Enables Approve/Reject buttons on the push so you can resolve from
   // the lock screen. Without it, pushes are informational only.
@@ -126,7 +131,7 @@ function load() {
 function pickOverrides(stored) {
   const out = {};
   for (const k of ["host", "port", "defaultCwd", "defaultModel", "defaultPermissionMode", "transport", "grokAutoUpdate",
-                   "tunnel", "tunnelToken", "tunnelUrl", "rendezvous"]) {
+                   "tunnel", "tunnelToken", "tunnelUrl", "rendezvous", "ntfy", "bark"]) {
     if (stored[k] !== undefined) out[k] = stored[k];
   }
   return out;

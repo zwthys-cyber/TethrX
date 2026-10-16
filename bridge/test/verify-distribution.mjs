@@ -21,7 +21,7 @@ const wantedParts = wanted.split(".").map(Number);
 let comparison = 0;
 for (let i = 0; i < 3 && comparison === 0; i++) comparison = Math.sign(actualParts[i] - wantedParts[i]);
 assert.ok(comparison >= 0, `Bridge ${pkg.version} is older than the app's required ${wanted}`);
-for (const file of ["src/server.mjs", "src/sessions.mjs", "src/titles.mjs", "src/tunnel.mjs", "public/index.html", "public/qrcode.js"]) {
+for (const file of ["src/server.mjs", "src/sessions.mjs", "src/titles.mjs", "src/tunnel.mjs", "src/notify.mjs", "public/index.html", "public/qrcode.js"]) {
   assert.ok(existsSync(join(packageRoot, file)), `Distributed package is missing ${file}`);
 }
 
