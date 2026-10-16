@@ -262,7 +262,10 @@ async function install(flags) {
     writeFileSync(UNIT, unitFile(env), { mode: 0o600 });
     chmodSync(UNIT, 0o600);
     run("systemctl", ["--user", "daemon-reload"]);
-    const r = run("systemctl", ["--user", "enable", "--now", "tethrx-bridge"]);
+    run("systemctl", ["--user", "enable", "tethrx-bridge"]);
+    // `enable --now` leaves an already-running copy alone, so reinstalling with new
+    // settings (--tunnel, another --host) kept the old process and its old ones.
+    const r = run("systemctl", ["--user", "restart", "tethrx-bridge"]);
     if (!r.ok) {
       console.log(`\n  Couldn't start the service: ${r.out.trim() || "systemctl refused"}\n`);
       return 1;

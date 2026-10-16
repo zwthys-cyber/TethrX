@@ -15,6 +15,10 @@
 - Proxied requests are never treated as loopback, so the pairing page stays private behind the tunnel. Service files are written owner-only, since they can now hold a tunnel token.
 - ntfy approval buttons use the tunnel address when no public URL is configured.
 
+### Fixed
+
+- Bridge 0.1.32: `service install` on Linux restarts a service that is already running. Reinstalling with `--tunnel` used to leave the old process running with its old settings, so the tunnel never started.
+
 ### Distribution
 
 - Bridge 0.1.31. GitHub CI starts the installed package with `--tunnel` and checks it from the public address: token required, pairing page refused, live event stream, signed address announcement. A Swift check verifies the app's signature handling against the bridge's.
