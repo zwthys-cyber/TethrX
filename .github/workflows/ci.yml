@@ -32,6 +32,8 @@ jobs:
         run: node bridge/test/verify-fixes.mjs
       - name: internet tunnel (unit)
         run: node bridge/test/verify-tunnel.mjs
+      - name: push routing and key-less push payloads
+        run: node bridge/test/verify-push.mjs --live
       - name: bridge meets app version requirement
         run: node bridge/test/verify-distribution.mjs
       - name: smoke
@@ -103,6 +105,14 @@ jobs:
           # The one-time approval link is a mutation, so it must refuse a bare GET
           # (a link preview or a prefetch could otherwise burn the token).
           test "$(curl -s -o /dev/null -w '%{http_code}' localhost:4180/api/approve/whatever)" = "405"
+
+          # a re-signed build registers its own bundle id and APNs environment
+          curl -fsS -X POST -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+            -d "{\"token\":\"$(printf 'ab%.0s' {1..32})\",\"topic\":\"nsk-164.v-team.cn\",\"env\":\"development\"}" \
+            localhost:4180/api/devices | grep -q '"ok":true'
+          node -e "const d=JSON.parse(require('fs').readFileSync(process.env.HOME+'/.grok-remote/devices.json'));const i=d.info['ab'.repeat(32)];if(i.topic!=='nsk-164.v-team.cn'||i.env!=='development')throw new Error('device route not stored')"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+            -d "{\"token\":\"$(printf 'ab%.0s' {1..32})\",\"env\":\"staging\"}" localhost:4180/api/devices)" = "400"
 
           # `service` must never fall through into starting a server
           node bridge/src/server.mjs service status | grep -q 'TethrX bridge service'
@@ -184,6 +194,10 @@ jobs:
           node bridge/test/rendezvous-fixture.mjs "$RUNNER_TEMP/rendezvous.json"
           swiftc -O -o "$RUNNER_TEMP/rendezvoustest" ios/tools/rendezvoustest.swift ios/GrokRemote/Rendezvous.swift
           "$RUNNER_TEMP/rendezvoustest" "$RUNNER_TEMP/rendezvous.json"
+      - name: push route from the provisioning profile
+        run: |
+          swiftc -O -o "$RUNNER_TEMP/pushroutetest" ios/tools/pushroutetest.swift ios/GrokRemote/PushRoute.swift
+          "$RUNNER_TEMP/pushroutetest"
       - name: build
         run: |
           set -o pipefail

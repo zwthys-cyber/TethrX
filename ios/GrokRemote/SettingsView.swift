@@ -936,17 +936,43 @@ struct SettingsView: View {
 
     private var notifications: some View {
         VStack(alignment: .leading, spacing: 12) {
+            toggleRow("Push notifications",
+                      "Get alerted when Grok finishes a turn or needs approval, even with the app closed",
+                      Binding(get: { push.enabled }, set: { $0 ? push.enable() : push.disable() }))
             if SharedConfig.isStandalone {
-                Text("This build does not support Apple push notifications. Configure ntfy on your bridge to receive alerts in the ntfy app.")
-                    .font(Grok.sans(13)).foregroundStyle(Grok.textFaint)
+                standalonePushNotes
             } else {
-                toggleRow("Push notifications",
-                          "Get alerted when Grok finishes a turn or needs approval, even with the app closed",
-                          Binding(get: { push.enabled }, set: { $0 ? push.enable() : push.disable() }))
                 Text("Requires an APNs key configured on your bridge. Delivered to this phone when it isn't actively watching a session.")
                     .font(Grok.sans(13)).foregroundStyle(Grok.textFaint)
             }
+            if let error = push.registrationError {
+                Text("iOS refused push for this install: \(error)")
+                    .font(Grok.sans(13)).foregroundStyle(Grok.danger)
+            }
         }
+    }
+
+    /// A re-signed build pushes under the signer's bundle id and Apple team, so the
+    /// App Store app's key is no use to it; spell out what the bridge needs instead.
+    @ViewBuilder private var standalonePushNotes: some View {
+        let profile = PushRoute.profile
+        let team = profile.teamId ?? "?"
+        if profile.environment == .development {
+            Text("Signing profile allows push (development, sandbox). Bundle ID \(PushRoute.topic), team \(team).")
+                .font(Grok.sans(13)).foregroundStyle(Grok.textDim)
+        } else if profile.environment == .production {
+            Text("Signing profile allows push (production). Bundle ID \(PushRoute.topic), team \(team).")
+                .font(Grok.sans(13)).foregroundStyle(Grok.textDim)
+        } else {
+            Text("This signing profile has no push entitlement, so iOS will not issue a device token. Use Bark below.")
+                .font(Grok.sans(13)).foregroundStyle(Grok.danger)
+        }
+        Text("Apple push from your bridge needs an APNs key (.p8) created in the same Apple developer team (\(team)). Set it on the bridge, then restart it:")
+            .font(Grok.sans(13)).foregroundStyle(Grok.textFaint)
+        CopyableCode(text: "GROK_REMOTE_APNS_KEY=/path/AuthKey.p8 GROK_REMOTE_APNS_KEY_ID=KEYID GROK_REMOTE_APNS_TEAM_ID=\(team) tethrx-bridge service install --tunnel")
+        Text("No APNs key? Install Bark from the App Store, copy its URL with your key, and run the bridge with it. Tapping an alert opens the session in TethrX.")
+            .font(Grok.sans(13)).foregroundStyle(Grok.textFaint)
+        CopyableCode(text: "GROK_REMOTE_BARK=https://api.day.app/YOUR_KEY tethrx-bridge service install --tunnel")
     }
 
     private var snippetsSection: some View {

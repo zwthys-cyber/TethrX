@@ -181,7 +181,17 @@ Scope the key to **Sandbox & Production** — App Store and TestFlight builds bo
 GROK_REMOTE_NTFY="https://ntfy.sh/your-secret-topic" tethrx-bridge
 ```
 
-Subscribe to that topic in the [ntfy](https://ntfy.sh) app.
+Subscribe to that topic in the [ntfy](https://ntfy.sh) app. Tapping an alert opens the session in TethrX.
+
+**Bark (no developer account needed).** Install [Bark](https://bark.day.app), copy its URL with your device key, and:
+
+```bash
+GROK_REMOTE_BARK="https://api.day.app/your-key" tethrx-bridge
+```
+
+Tapping the alert opens the session in TethrX. Bark has no Approve / Reject buttons.
+
+**Re-signed builds (ESign).** The app tells the bridge its own bundle ID and, from its provisioning profile, whether its token is for production or the APNs sandbox, and the bridge sends to match. The bridge still needs an APNs key from the Apple team that signed the build; without one, use Bark or ntfy. See [docs/iphone17pm-ios26.6.md](docs/iphone17pm-ios26.6.md).
 
 ---
 
@@ -198,6 +208,8 @@ Subscribe to that topic in the [ntfy](https://ntfy.sh) app.
 | `GROK_REMOTE_TRANSPORT` | `acp` | `acp` (rich + approvals) or `headless` |
 | `GROK_REMOTE_ASK` | `1` | ACP per-tool prompts (`0` = inherit global grok config) |
 | `GROK_REMOTE_NTFY` | — | ntfy topic URL for push |
+| `GROK_REMOTE_BARK` | — | Bark URL with your device key, for push without an APNs key |
+| `GROK_REMOTE_APNS_KEY` / `_KEY_ID` / `_TEAM_ID` | — | APNs key (`.p8`, absolute path), Key ID and Team ID, instead of `apns` in `config.json` |
 | `GROK_REMOTE_TLS_CERT` / `_KEY` | — | PEM paths to serve HTTPS |
 | `GROK_REMOTE_CWD` | `~` | Default working directory for new sessions |
 | `GROK_BIN` | auto | Path to the `grok` binary |
@@ -210,7 +222,7 @@ State (pairing token, session registry, redirected grok-home) lives in `~/.grok-
 
 - **Token auth** on every request (minted on first run, stored `0600`). The iOS app keeps it in the **Keychain**.
 - Approvals mean Grok can't run a command or edit a file without your explicit tap (with `GROK_REMOTE_ASK=1`).
-- With `--tunnel`, traffic is HTTPS between the phone and Cloudflare's edge and passes through Cloudflare to the bridge's loopback port; the token check, approvals and loopback-only pairing page apply unchanged. The address announcement on ntfy carries the public address and a signature, never the token. Use **Tailscale or TLS** instead if nothing may pass through a third party. Without `--tunnel`, nothing talks to a third party except optional ntfy pushes you configure.
+- With `--tunnel`, traffic is HTTPS between the phone and Cloudflare's edge and passes through Cloudflare to the bridge's loopback port; the token check, approvals and loopback-only pairing page apply unchanged. The address announcement on ntfy carries the public address and a signature, never the token. Use **Tailscale or TLS** instead if nothing may pass through a third party. Without `--tunnel`, nothing talks to a third party except optional ntfy or Bark pushes you configure.
 
 ---
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.10 (60) — 2026-10-16
+
+### Added
+
+- Notifications in the ESign build. It used to switch push off entirely. A certificate whose profile has push now gets a device token. The app reads `aps-environment` from its provisioning profile and registers its own bundle ID and APNs environment with the bridge, which sends development tokens to the APNs sandbox. **Settings → Notifications** shows what the profile allows, the bundle ID and team, and why iOS refused a token. The bridge still needs an APNs key (`.p8`) from the Apple team that signed the build.
+- Bridge 0.1.33: Bark push (`GROK_REMOTE_BARK`), which needs no APNs key and works with any certificate. Tapping a Bark or ntfy alert opens the session in TethrX.
+- `service install` keeps `GROK_REMOTE_APNS_KEY`, `_KEY_ID`, `_TEAM_ID`, `_TOPIC` and `GROK_REMOTE_BARK` in the service.
+
+### Fixed
+
+- ntfy alerts for a session whose title is not plain ASCII (any Chinese title) were silently never sent, because the title header was rejected. Titles are now RFC 2047 encoded.
+
 ## 1.1.9 (59) — 2026-10-16
 
 ### Added

@@ -1,6 +1,72 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "iOS refused push for this install: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS 拒绝为此安装启用推送：%@"
+          }
+        }
+      }
+    },
+    "Signing profile allows push (development, sandbox). Bundle ID %@, team %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "签名描述文件允许推送（开发环境，沙盒）。Bundle ID %1$@，团队 %2$@。"
+          }
+        }
+      }
+    },
+    "Signing profile allows push (production). Bundle ID %@, team %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "签名描述文件允许推送（生产环境）。Bundle ID %1$@，团队 %2$@。"
+          }
+        }
+      }
+    },
+    "This signing profile has no push entitlement, so iOS will not issue a device token. Use Bark below.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此签名描述文件没有推送权限，iOS 不会发放设备令牌。请使用下方的 Bark。"
+          }
+        }
+      }
+    },
+    "Apple push from your bridge needs an APNs key (.p8) created in the same Apple developer team (%@). Set it on the bridge, then restart it:": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "桥接服务要发送 Apple 推送，需要一个在同一 Apple 开发者团队（%@）中创建的 APNs 密钥（.p8）。在桥接服务上设置后重启："
+          }
+        }
+      }
+    },
+    "No APNs key? Install Bark from the App Store, copy its URL with your key, and run the bridge with it. Tapping an alert opens the session in TethrX.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有 APNs 密钥？从 App Store 安装 Bark，复制其中带密钥的 URL，并用它运行桥接服务。点按提醒即可在 TethrX 中打开对应会话。"
+          }
+        }
+      }
+    },
     "Use an SSH app on this phone to set up your Linux server. The bridge gives the server a secure internet address, so the phone connects over Wi-Fi or cellular with no VPN. No personal computer is needed.": {
       "extractionState": "manual",
       "localizations": {
