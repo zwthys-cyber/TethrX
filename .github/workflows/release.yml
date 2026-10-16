@@ -1,0 +1,79 @@
+name: release
+
+# A numbered, permanent release: push a tag `v<MARKETING_VERSION>` (e.g. v1.1.9).
+# The tagged commit goes through the full CI (bridge smoke, the real internet
+# tunnel check, iOS build) and the ESign IPA build here, and only then is a
+# release created with the IPA, the bridge package and the changelog entry.
+# The rolling `bridge-latest` and `iphone17pm-ios26.6` downloads are unaffected.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tethrx-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: tag matches the app version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - run: |
+          set -euo pipefail
+          APP="$(grep -m1 -oE 'MARKETING_VERSION = [0-9.]+;' ios/GrokRemote.xcodeproj/project.pbxproj | grep -oE '[0-9]+(\.[0-9]+)+')"
+          test "$GITHUB_REF_NAME" = "v$APP" || { echo "tag $GITHUB_REF_NAME does not match app version $APP"; exit 1; }
+          grep -q "^## $APP " CHANGELOG.md || { echo "CHANGELOG.md has no entry for $APP"; exit 1; }
+
+  ci:
+    needs: check
+    uses: ./.github/workflows/ci.yml
+
+  esign:
+    needs: ci
+    uses: ./.github/workflows/esign-ipa.yml
+
+  publish:
+    name: publish versioned release
+    needs: [ci, esign]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          name: tethrx-bridge-package
+          path: dist
+      - uses: actions/download-artifact@v5
+        with:
+          name: TethrX-iPhone17ProMax-iOS26.6-esign
+          path: dist
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          APP="${GITHUB_REF_NAME#v}"
+          BRIDGE="$(jq -r .version dist/bridge-version.json)"
+          (cd dist && sha256sum -c tethrx-bridge.tgz.sha256)
+          (cd dist && shasum -a 256 -c TethrX-iPhone17ProMax-iOS26.6-esign.ipa.sha256)
+          {
+            awk -v v="$APP" '$0 ~ "^## "v" " {on=1; next} on && /^## / {exit} on' CHANGELOG.md
+            printf '\n## Downloads\n\n'
+            printf -- '- `TethrX-iPhone17ProMax-iOS26.6-esign.ipa`: unsigned app %s for 全能签 (iPhone 17 Pro Max / iOS 26.6). See [the signing guide](https://github.com/%s/blob/%s/docs/iphone17pm-ios26.6.md).\n' "$APP" "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME"
+            printf -- '- `tethrx-bridge.tgz`: bridge %s. Install or update on the server:\n\n' "$BRIDGE"
+            printf '```sh\nnpm i -g --prefer-online https://github.com/%s/releases/download/%s/tethrx-bridge.tgz\ntethrx-bridge service install --tunnel\ntethrx-bridge pair\n```\n\n' "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME"
+            printf 'Built and verified by GitHub Actions from commit %s.\n' "$GITHUB_SHA"
+          } > notes.md
+          cat notes.md
+          FILES="dist/TethrX-iPhone17ProMax-iOS26.6-esign.ipa dist/TethrX-iPhone17ProMax-iOS26.6-esign.ipa.sha256 dist/tethrx-bridge.tgz dist/tethrx-bridge.tgz.sha256 dist/bridge-version.json"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" $FILES --clobber
+            gh release edit "$GITHUB_REF_NAME" --title "TethrX $APP (bridge $BRIDGE)" --notes-file notes.md --latest
+          else
+            gh release create "$GITHUB_REF_NAME" $FILES --verify-tag \
+              --title "TethrX $APP (bridge $BRIDGE)" --notes-file notes.md --latest
+          fi

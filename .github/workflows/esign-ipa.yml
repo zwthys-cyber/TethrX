@@ -11,6 +11,13 @@ on:
         required: true
         default: nsk-164.v-team.cn
         type: string
+  # Called by the versioned release workflow after its own CI run.
+  workflow_call:
+    inputs:
+      bundle_id:
+        required: false
+        default: nsk-164.v-team.cn
+        type: string
   workflow_run:
     workflows: [ci]
     types: [completed]
@@ -22,7 +29,7 @@ permissions:
 jobs:
   ipa:
     # CI publishes a compatible bridge before this app is distributed.
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     name: unsigned iOS 26.6 IPA for 全能签
     runs-on: macos-26
     timeout-minutes: 45
