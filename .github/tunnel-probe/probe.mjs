@@ -41,15 +41,18 @@ const base = await new Promise((resolve, reject) => {
 console.log("tunnel", base);
 
 for (let i = 0; i < 30; i++) {
-  try { const r = await fetch(base + "/?v=x"); if (r.status === 404) break; } catch { }
+  try { const r = await fetch(base + "/?v=x", { signal: AbortSignal.timeout(5000) }); console.log("ready?", r.status); if (r.status === 404) break; } catch (e) { console.log("not ready", e.message); }
   await new Promise((r) => setTimeout(r, 2000));
 }
 
 for (const [name, v] of Object.entries(variants)) {
+  console.log('probing', name);
   const start = Date.now();
   const times = [];
+  const ac = new AbortController();
+  const kill = setTimeout(() => ac.abort(), 25000);
   try {
-    const r = await fetch(`${base}/?v=${encodeURIComponent(name)}`, { method: v.method, body: v.method === "POST" ? "{}" : undefined, headers: { accept: "text/event-stream" } });
+    const r = await fetch(`${base}/?v=${encodeURIComponent(name)}`, { signal: ac.signal, method: v.method, body: v.method === "POST" ? "{}" : undefined, headers: { accept: "text/event-stream" } });
     const reader = r.body.getReader();
     let buf = "";
     for (;;) {
@@ -60,8 +63,9 @@ for (const [name, v] of Object.entries(variants)) {
     }
     console.log(`${name.padEnd(40)} status=${r.status} enc=${r.headers.get("content-encoding")} first=${times[1]}ms last=${times[8]}ms spread=${times[8] - times[1]}ms`);
   } catch (e) {
-    console.log(`${name.padEnd(40)} ERROR ${e.message}`);
+    console.log(`${name.padEnd(40)} ERROR ${e.message} times=${JSON.stringify(times)}`);
   }
+  clearTimeout(kill);
 }
 cf.kill();
 server.close();
