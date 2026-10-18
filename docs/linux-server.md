@@ -24,6 +24,18 @@ grok login --device-auth
 
 把终端显示的授权网址复制到 iPhone 的 Safari，输入设备码完成登录。无需在服务器弹出浏览器。
 
+## 使用 DeepSeek
+
+模型列表里会多出 `deepseek-flash[1m]` 和 `deepseek-flash`。选中之后，这一路会话走 Claude Code 和 DeepSeek 的 API，不再走 Grok。手机上能看到回复和思考过程；工具是否执行由 Claude 自己的权限模式决定，不会弹出 Grok 那种逐条批准卡片。
+
+在启动桥接的同一个账户里设置 Key（用你自己的，不要写进仓库）：
+
+```sh
+export DEEPSEEK_API_KEY='你的 DeepSeek API Key'
+```
+
+也可以写进 `~/.grok-remote/config.json` 的 `deepseekApiKey` 字段。服务器上需要已安装 Claude Code（`claude` 命令可用）。
+
 ## 启动桥接并配对（无需 VPN）
 
 安装本仓库在 GitHub 检查通过后发布的桥接包，然后以互联网隧道方式启动：

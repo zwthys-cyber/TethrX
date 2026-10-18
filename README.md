@@ -213,6 +213,11 @@ Tapping the alert opens the session in TethrX. Bark has no Approve / Reject butt
 | `GROK_REMOTE_TLS_CERT` / `_KEY` | — | PEM paths to serve HTTPS |
 | `GROK_REMOTE_CWD` | `~` | Default working directory for new sessions |
 | `GROK_BIN` | auto | Path to the `grok` binary |
+| `DEEPSEEK_API_KEY` | — | Enables **deepseek-flash** and **deepseek-flash[1m]** in the model picker. The key stays on this computer |
+| `DEEPSEEK_BASE_URL` | `https://api.deepseek.com/anthropic` | DeepSeek's Anthropic-compatible API |
+| `CLAUDE_BIN` | auto | Path to Claude Code, used when a session's model is DeepSeek |
+
+A session whose model starts with `deepseek-` runs Claude Code against that API instead of Grok. The phone shows the reply and the reasoning trace. Claude's own permission mode handles tools (`auto`, or `bypassPermissions` when the session is set to auto-approve); those sessions do not use Grok's per-tool approval cards. Put the key in the environment, or in `~/.grok-remote/config.json` as `"deepseekApiKey"`. Do not commit it.
 
 State (pairing token, session registry, redirected grok-home) lives in `~/.grok-remote/`.
 

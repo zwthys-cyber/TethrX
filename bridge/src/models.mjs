@@ -16,6 +16,28 @@ export function parseGrokModels(text) {
   return { models, defaultModel };
 }
 
+/** Models served by DeepSeek's Anthropic-compatible API, not by `grok models`. */
+export const DEEPSEEK_MODELS = ["deepseek-flash[1m]", "deepseek-flash"];
+
+export function isDeepSeekModel(id) {
+  return /^deepseek-[A-Za-z0-9._[\]-]+$/.test(String(id || "").trim());
+}
+
+/** Append the DeepSeek roster without dropping or reordering what Grok reported. */
+export function mergeModelRoster(info, { includeDeepSeek = true } = {}) {
+  const models = Array.isArray(info?.models) ? [...info.models] : [];
+  const seen = new Set(models);
+  if (includeDeepSeek) {
+    for (const id of DEEPSEEK_MODELS) {
+      if (!seen.has(id)) {
+        seen.add(id);
+        models.push(id);
+      }
+    }
+  }
+  return { models, defaultModel: info?.defaultModel || "" };
+}
+
 export function listGrokModels(grokBin, timeout = 20_000) {
   return new Promise((resolve) => {
     let out = "", err = "", settled = false;

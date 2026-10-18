@@ -51,6 +51,7 @@ const PASSTHROUGH = [
   "GROK_REMOTE_TUNNEL", "GROK_REMOTE_TUNNEL_TOKEN", "GROK_REMOTE_TUNNEL_URL",
   "GROK_REMOTE_CLOUDFLARED", "GROK_REMOTE_RENDEZVOUS",
   "GROK_REMOTE_APNS_KEY", "GROK_REMOTE_APNS_KEY_ID", "GROK_REMOTE_APNS_TEAM_ID", "GROK_REMOTE_APNS_TOPIC",
+  "DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL", "CLAUDE_BIN",
 ];
 
 function run(cmd, args, { quiet = true } = {}) {
@@ -61,8 +62,9 @@ function run(cmd, args, { quiet = true } = {}) {
 /** launchd and systemd both start with a bare PATH, so `grok` has to be findable
  *  by absolute location. Put node's own directory and grok's install dir up front. */
 function servicePath() {
-  const parts = [dirname(process.execPath), join(homedir(), ".grok", "bin")];
+  const parts = [dirname(process.execPath), join(homedir(), ".grok", "bin"), join(homedir(), ".local", "bin")];
   if (config.grokBin.includes("/")) parts.push(dirname(config.grokBin));
+  if (config.claudeBin?.includes("/")) parts.push(dirname(config.claudeBin));
   parts.push("/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin");
   return [...new Set(parts)].join(":");
 }
