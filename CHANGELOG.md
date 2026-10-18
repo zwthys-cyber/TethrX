@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Bridge 0.1.33: the model picker includes `deepseek-flash[1m]` and `deepseek-flash` when the computer has a DeepSeek API key. Choosing one runs that session through Claude Code and DeepSeek's API. Grok sessions are unchanged.
+
 ## 1.1.9 (59) — 2026-10-16
 
 ### Added

@@ -21,6 +21,13 @@ function resolveGrokBin() {
   return "grok";
 }
 
+function resolveClaudeBin() {
+  if (process.env.CLAUDE_BIN) return process.env.CLAUDE_BIN;
+  const local = join(homedir(), ".local", "bin", "claude");
+  if (existsSync(local)) return local;
+  return "claude";
+}
+
 const DEFAULTS = {
   // 127.0.0.1 keeps the bridge private to this machine. Set to "0.0.0.0" (or use a
   // Tailscale/VPN address) to let a phone on your network reach it. See README.
@@ -74,6 +81,12 @@ const DEFAULTS = {
   // Where a changed tunnel address is announced so the phone can follow it
   // (signed with the pairing token). "off" disables it.
   rendezvous: process.env.GROK_REMOTE_RENDEZVOUS || "https://ntfy.sh",
+
+  // DeepSeek is optional. The key stays in the environment or in this private
+  // config file; it is never written into the repository or sent to the phone.
+  deepseekApiKey: process.env.DEEPSEEK_API_KEY || "",
+  deepseekBaseUrl: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/anthropic",
+  claudeBin: resolveClaudeBin(),
 };
 
 function load() {
@@ -113,6 +126,7 @@ function load() {
     token: stored.token,
     serverId: stored.serverId,
     grokBin: resolveGrokBin(),
+    claudeBin: resolveClaudeBin(),
     name: "TethrX",
     // Optional APNs push. Set via config.json { "apns": { "keyPath", "keyId", "teamId" } }
     // or GROK_REMOTE_APNS_KEY / _KEY_ID / _TEAM_ID env vars.
@@ -126,7 +140,8 @@ function load() {
 function pickOverrides(stored) {
   const out = {};
   for (const k of ["host", "port", "defaultCwd", "defaultModel", "defaultPermissionMode", "transport", "grokAutoUpdate",
-                   "tunnel", "tunnelToken", "tunnelUrl", "rendezvous"]) {
+                   "tunnel", "tunnelToken", "tunnelUrl", "rendezvous",
+                   "deepseekApiKey", "deepseekBaseUrl", "claudeBin"]) {
     if (stored[k] !== undefined) out[k] = stored[k];
   }
   return out;

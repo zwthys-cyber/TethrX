@@ -14,7 +14,8 @@ import { join } from "node:path";
 import { SessionStore } from "../src/sessions.mjs";
 import { AcpSession } from "../src/acp.mjs";
 import * as git from "../src/git.mjs";
-import { parseGrokModels } from "../src/models.mjs";
+import { isDeepSeekModel, mergeModelRoster, parseGrokModels } from "../src/models.mjs";
+import { deepseekPermissionMode, normalizeClaudeEvent } from "../src/deepseek.mjs";
 import { UsageHistory } from "../src/usage-history.mjs";
 import { promptWithTitleGuidance } from "../src/titles.mjs";
 import { fetchLatestBridgeVersion, isNewerBridgeVersion } from "../src/distribution.mjs";
@@ -65,6 +66,43 @@ check("grok model output is parsed without hard-coded ids", () => {
     models: ["grok-next", "grok-fast", "grok-old"],
     defaultModel: "grok-next",
   });
+});
+
+check("DeepSeek models are added beside Grok's roster", () => {
+  const parsed = parseGrokModels("Default model: grok-next\n  * grok-next (default)\n");
+  const info = mergeModelRoster(parsed, { includeDeepSeek: true });
+  assert.deepEqual(info.models, ["grok-next", "deepseek-flash[1m]", "deepseek-flash"]);
+  assert.deepEqual(mergeModelRoster(parsed, { includeDeepSeek: false }).models, ["grok-next"]);
+  assert.equal(info.defaultModel, "grok-next");
+  assert.equal(isDeepSeekModel("deepseek-flash[1m]"), true);
+  assert.equal(isDeepSeekModel("grok-next"), false);
+  assert.equal(isDeepSeekModel("deepseek-flash;rm"), false);
+  assert.equal(deepseekPermissionMode("all"), "bypassPermissions");
+  assert.equal(deepseekPermissionMode("ask"), "auto");
+});
+
+check("Claude stream events become text, thought, and end without repeating the snapshot", () => {
+  const thought = normalizeClaudeEvent({
+    type: "stream_event",
+    event: { type: "content_block_delta", delta: { type: "thinking_delta", thinking: "hmm" } },
+  });
+  const text = normalizeClaudeEvent({
+    type: "stream_event",
+    event: { type: "content_block_delta", delta: { type: "text_delta", text: "pong" } },
+  });
+  const snapshot = normalizeClaudeEvent({ type: "assistant", message: { content: [{ type: "text", text: "pong" }] } });
+  const end = normalizeClaudeEvent({
+    type: "result", subtype: "success", session_id: "sess", is_error: false,
+    usage: { input_tokens: 3, output_tokens: 1, cache_read_input_tokens: 2 },
+  });
+  assert.deepEqual(thought, [{ kind: "thought", text: "hmm" }]);
+  assert.deepEqual(text, [{ kind: "text", text: "pong" }]);
+  assert.deepEqual(snapshot, []);
+  assert.equal(end[0].kind, "end");
+  assert.equal(end[0].ok, true);
+  assert.equal(end[0].sessionId, "sess");
+  assert.equal(end[0].usage.totalTokens, 4);
+  assert.equal(end[0].usage.cachedReadTokens, 2);
 });
 
 check("daily usage is split by the model that served each turn", () => {

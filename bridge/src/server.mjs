@@ -46,7 +46,8 @@ import { BRIDGE_INSTALL_COMMAND, fetchLatestBridgeVersion, isNewerBridgeVersion 
 import { ensureTls } from "./tls.mjs";
 import * as awake from "./awake.mjs";
 import * as git from "./git.mjs";
-import { listGrokModels } from "./models.mjs";
+import { isDeepSeekModel, listGrokModels, mergeModelRoster } from "./models.mjs";
+import { deepseekContextWindow, deepseekPermissionMode, runDeepSeekTurn } from "./deepseek.mjs";
 import { locateSessionMedia, mediaContentType } from "./media.mjs";
 import { startTunnel, tunnelMode, pairingLink, readTunnelState } from "./tunnel.mjs";
 
@@ -701,6 +702,9 @@ async function listWorkflows(cwd) {
 // happen silently after grok auto-updates). Turn that into something actionable.
 function friendlyTurnError(err) {
   const raw = String(err?.message || err);
+  if (/Authentication Fails|invalid api key/i.test(raw)) {
+    return "DeepSeek rejected the API key on this computer. Set DEEPSEEK_API_KEY to a valid key, then send this again.";
+  }
   if (/Authentication required|no auth method|unauthenticated|not authenticated/i.test(raw)) {
     return "Grok Build isn't signed in on your computer. Open a terminal there, run `grok`, and sign in, then send this again.";
   }
@@ -755,6 +759,7 @@ function warnContextIfNearlyFull(session) {
 // Kick off a Grok turn WITHOUT blocking the HTTP response. Events flow to the
 // session's SSE subscribers (and history) as they arrive.
 function startTurn(session, body) {
+  if (isDeepSeekModel(session.model)) return startDeepSeekTurn(session, body);
   return session.transport === "acp" ? startAcpTurn(session, body) : startHeadlessTurn(session, body);
 }
 
@@ -894,6 +899,72 @@ function branchTitle(title) {
     if (!taken.has(candidate)) return candidate;
   }
   return `${root} (branch)`;
+}
+
+function startDeepSeekTurn(session, body) {
+  if (!config.deepseekApiKey) {
+    session.emit({
+      kind: "error",
+      message: "DeepSeek is not configured on this computer. Set DEEPSEEK_API_KEY and send this again.",
+    });
+    return;
+  }
+  const signal = session.beginTurn();
+  session.emit({
+    kind: "turn_start",
+    text: body.displayText ?? body.text,
+    imageCount: body.imageCount || 0,
+    at: new Date().toISOString(),
+  });
+  awake.acquire();
+  laTurnStart(session);
+
+  runDeepSeekTurn({
+    claudeBin: config.claudeBin,
+    prompt: body.text,
+    cwd: session.cwd,
+    model: session.model,
+    resumeSessionId: session.grokSessionId || "",
+    apiKey: config.deepseekApiKey,
+    baseUrl: config.deepseekBaseUrl,
+    permissionMode: deepseekPermissionMode(session.approvalPolicy),
+    signal,
+    onEvent: (event) => session.emit(event),
+  })
+    .then((result) => {
+      if (result.sessionId && result.sessionId !== session.grokSessionId) {
+        session.grokSessionId = result.sessionId;
+      }
+      const contextWindow = deepseekContextWindow(session.model);
+      session.addUsage({
+        usage: result.usage,
+        contextTokens: result.usage?.inputTokens || undefined,
+        contextWindow: contextWindow || undefined,
+        modelId: session.model,
+      });
+      usageHistory.record(result.usage, session.model);
+      session.emit({ kind: "usage", usage: session.usage });
+      warnContextIfNearlyFull(session);
+      session.emit({ kind: "turn_complete", stopReason: result.stopReason });
+      pushNotify(session, { title: displayTitle(session), message: "DeepSeek finished the turn.", tags: "white_check_mark", category: "REPLY" });
+      laTurnEnd(session, "done", "Finished");
+    })
+    .catch((err) => {
+      session.emit({ kind: "error", message: friendlyTurnError(err) });
+      pushNotify(session, {
+        title: displayTitle(session),
+        message: `Turn failed: ${friendlyTurnError(err)}`.slice(0, 170),
+        priority: "high", tags: "x", category: "REPLY",
+      });
+      laTurnEnd(session, "error", "Something went wrong");
+    })
+    .finally(() => {
+      awake.release();
+      session.endTurn();
+      store.save();
+      session.saveHistory();
+      continueAfterTurn(session);
+    });
 }
 
 function startHeadlessTurn(session, body) {
@@ -1397,10 +1468,11 @@ async function handle(req, res) {
   // phone. That keeps the picker current as xAI adds, renames, or removes models.
   if (pathname === "/api/grok/models" && req.method === "GET") {
     const info = await listGrokModels(config.grokBin);
-    if (!info.models.length) {
+    const merged = mergeModelRoster(info, { includeDeepSeek: Boolean(config.deepseekApiKey) });
+    if (!merged.models.length) {
       return send(res, 502, { error: "couldn't list models. Is grok installed?" });
     }
-    return send(res, 200, info);
+    return send(res, 200, merged);
   }
   if (pathname === "/api/grok/plugins" && req.method === "POST") {
     const body = await readJsonOrEmpty(req);
@@ -1471,9 +1543,13 @@ async function handle(req, res) {
   }
   if (pathname === "/api/sessions" && req.method === "POST") {
     const body = await readJsonOrEmpty(req);
+    const model = body.model || config.defaultModel;
+    if (isDeepSeekModel(model) && !config.deepseekApiKey) {
+      return send(res, 400, { error: "DeepSeek is not configured. Set DEEPSEEK_API_KEY on the computer running the bridge." });
+    }
     const session = store.create({
       cwd: body.cwd || config.defaultCwd,
-      model: body.model || config.defaultModel,
+      model,
       effort: body.effort,
       transport: body.transport || config.transport,
       planMode: body.planMode ?? false,
