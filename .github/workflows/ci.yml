@@ -72,7 +72,8 @@ jobs:
 
           # logs must never carry the pairing token — they get pasted into bug reports
           curl -fsS -H "Authorization: Bearer $TOKEN" localhost:4180/api/logs -o /tmp/logs.json
-          node -e "const t=process.argv[1];const s=require('fs').readFileSync('/tmp/logs.json','utf8');if(s.includes(t))throw new Error('pairing token leaked into /api/logs');console.log('logs redacted')" "$TOKEN"
+          # Via the environment: a token starting with "-" was parsed as a node option.
+          TOKEN="$TOKEN" node -e "const t=process.env.TOKEN;if(!t)throw new Error('no token');const s=require('fs').readFileSync('/tmp/logs.json','utf8');if(s.includes(t))throw new Error('pairing token leaked into /api/logs');console.log('logs redacted')"
 
           # daily usage rollups
           curl -fsS -H "Authorization: Bearer $TOKEN" 'localhost:4180/api/usage/history?days=3' | grep -q '"days"'
