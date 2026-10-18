@@ -71,7 +71,7 @@ check("grok model output is parsed without hard-coded ids", () => {
 check("DeepSeek models are added beside Grok's roster", () => {
   const parsed = parseGrokModels("Default model: grok-next\n  * grok-next (default)\n");
   const info = mergeModelRoster(parsed, { includeDeepSeek: true });
-  assert.deepEqual(info.models, ["grok-next", "deepseek-flash[1m]", "deepseek-flash"]);
+  assert.deepEqual(info.models, ["grok-next", "deepseek-v4-pro[1m]", "deepseek-v4-pro", "deepseek-flash[1m]", "deepseek-flash"]);
   assert.deepEqual(mergeModelRoster(parsed, { includeDeepSeek: false }).models, ["grok-next"]);
   assert.equal(info.defaultModel, "grok-next");
   assert.equal(isDeepSeekModel("deepseek-flash[1m]"), true);

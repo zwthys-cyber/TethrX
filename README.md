@@ -213,7 +213,7 @@ Tapping the alert opens the session in TethrX. Bark has no Approve / Reject butt
 | `GROK_REMOTE_TLS_CERT` / `_KEY` | — | PEM paths to serve HTTPS |
 | `GROK_REMOTE_CWD` | `~` | Default working directory for new sessions |
 | `GROK_BIN` | auto | Path to the `grok` binary |
-| `DEEPSEEK_API_KEY` | — | Enables **deepseek-flash** and **deepseek-flash[1m]** in the model picker. The key stays on this computer |
+| `DEEPSEEK_API_KEY` | — | Enables **deepseek-v4-pro[1m]**, **deepseek-v4-pro**, **deepseek-flash[1m]** and **deepseek-flash** in the model picker. The key stays on this computer |
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com/anthropic` | DeepSeek's Anthropic-compatible API |
 | `CLAUDE_BIN` | auto | Path to Claude Code, used when a session's model is DeepSeek |
 

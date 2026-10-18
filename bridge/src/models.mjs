@@ -17,7 +17,7 @@ export function parseGrokModels(text) {
 }
 
 /** Models served by DeepSeek's Anthropic-compatible API, not by `grok models`. */
-export const DEEPSEEK_MODELS = ["deepseek-flash[1m]", "deepseek-flash"];
+export const DEEPSEEK_MODELS = ["deepseek-v4-pro[1m]", "deepseek-v4-pro", "deepseek-flash[1m]", "deepseek-flash"];
 
 export function isDeepSeekModel(id) {
   return /^deepseek-[A-Za-z0-9._[\]-]+$/.test(String(id || "").trim());

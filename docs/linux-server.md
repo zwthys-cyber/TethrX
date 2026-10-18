@@ -26,7 +26,7 @@ grok login --device-auth
 
 ## 使用 DeepSeek
 
-模型列表里会多出 `deepseek-flash[1m]` 和 `deepseek-flash`。选中之后，这一路会话走 Claude Code 和 DeepSeek 的 API，不再走 Grok。手机上能看到回复和思考过程；工具是否执行由 Claude 自己的权限模式决定，不会弹出 Grok 那种逐条批准卡片。
+模型列表里会多出 `deepseek-v4-pro[1m]`、`deepseek-v4-pro`、`deepseek-flash[1m]` 和 `deepseek-flash`。选中之后，这一路会话走 Claude Code 和 DeepSeek 的 API，不再走 Grok。手机上能看到回复和思考过程；工具是否执行由 Claude 自己的权限模式决定，不会弹出 Grok 那种逐条批准卡片。
 
 在启动桥接的同一个账户里设置 Key（用你自己的，不要写进仓库）：
 
